@@ -3,7 +3,7 @@ from openai import OpenAI
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Veo Campaign Director Ultimate",
+    page_title="Veo Campaign Director Ultimate Final",
     page_icon="🎬",
     layout="wide"
 )
@@ -28,6 +28,11 @@ st.markdown("""
     }
     h1, h2, h3 { font-family: 'Helvetica', sans-serif; }
     .stSelectbox, .stTextInput { margin-bottom: 10px; }
+    /* Hervorhebung für die wichtige Checkbox */
+    div[data-testid="stCheckbox"] label span {
+        font-weight: bold;
+        color: #0068c9;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -39,10 +44,11 @@ with st.sidebar:
         api_key = st.secrets["OPENAI_API_KEY"]
     else:
         api_key = st.text_input("OpenAI API Key", type="password")
+    st.info("Dieser Generator ist optimiert für Google Veo und Midjourney v6.")
 
 # --- HEADER ---
-st.title("🎬 Veo Campaign Director Ultimate")
-st.markdown("Der Profi-Generator für **High-End Werbekampagnen**. Kontrolliere Haut, Licht, Produkt und jetzt auch die **Pose**.")
+st.title("🎬 Veo Campaign Director Ultimate (Final)")
+st.markdown("Der Profi-Generator für **High-End Werbekampagnen**. Kontrolliere Haut, Licht, Pose und **Produkt-Referenzen**.")
 st.divider()
 
 # --- 1. MODEL LOOK ---
@@ -65,19 +71,17 @@ with col4:
     freckles = st.radio("Haut-Details", ["Klare Haut", "Sommersprossen"], horizontal=True)
     makeup = st.select_slider("Make-up", options=["No Makeup", "Natural/Clean", "Soft Glam", "High Fashion"])
 
-# --- 2. POSE & STIMMUNG (NEU!) ---
+# --- 2. POSE & STIMMUNG ---
 st.markdown("---")
 st.subheader("2. Pose, Blick & Vibe")
 p1, p2, p3, p4 = st.columns(4)
 
 with p1:
-    # NEU: Pose Auswahl
     pose = st.selectbox("Körperhaltung (Pose)", 
                         ["Standing Upright (Power Pose)", "Relaxed Leaning", "Walking towards Camera", 
                          "Sitting Elegantly", "Over the Shoulder", "Dynamic Action/Motion"])
 
 with p2:
-    # NEU: Blickrichtung
     gaze = st.selectbox("Blickrichtung", 
                         ["Straight into Camera (Direct Eye Contact)", "Looking away (Dreamy)", 
                          "Looking down (Thoughtful)", "Looking up (Hopeful)"])
@@ -106,14 +110,16 @@ with t3:
 with t4:
     lens = st.selectbox("Objektiv", ["85mm (Portrait)", "100mm Macro (Details)", "35mm (Lifestyle)", "24mm (Wide/Fashion)"])
 
-# --- 4. KAMPAGNE & PRODUKT ---
+# --- 4. KAMPAGNE & PRODUKT (WICHTIGES UPDATE) ---
 st.markdown("---")
-st.subheader("4. Die Kampagne (Produkt)")
+st.subheader("4. Die Kampagne (Produkt & Referenz)")
 c1, c2 = st.columns([1, 1])
 
 with c1:
-    product = st.text_input("Produkt / Thema", placeholder="z.B. Luxus Handtasche, Anti-Aging Serum")
-    wear_product = st.checkbox("Model trägt/hält das Produkt sichtbar?", value=False)
+    product = st.text_input("Produkt / Thema", placeholder="z.B. Goldene Halskette mit Rubin")
+    # DIE NEUE CHECKBOX LOGIK
+    wear_product = st.checkbox("Exaktes Produkt wird als Bild in Veo hochgeladen? (Referenz-Bild)", value=False,
+                               help="WICHTIG: Wenn angehakt, weist der Prompt Veo an, das Produkt aus deinem hochgeladenen Bild zu verwenden, anstatt eines zu erfinden.")
 
 with c2:
     bg = st.selectbox("Hintergrund", 
@@ -128,24 +134,29 @@ def generate_prompt():
 
     client = OpenAI(api_key=api_key)
 
-    # Produkt-Logik
+    # --- DIE NEUE PRODUKT LOGIK ---
     if wear_product:
-        prod_instr = f"The model is WEARING/HOLDING the product '{product}' visibly. It is the focal point."
+        # Wenn Haken gesetzt: Instruktion für Referenzbild
+        prod_instr = f"CRITICAL INSTRUCTION: The user provides a reference image of the product '{product}'. The output prompt MUST explicitly state: 'Using the provided product reference image, ensure the model is wearing exactly this specific item.'"
+        ref_reminder = "✅ Denke daran, das Bild der Kette/des Produkts in Veo hochzuladen!"
     else:
-        prod_instr = f"Campaign for '{product}', but model is NOT wearing it visibly. Focus on the VIBE of the brand."
+        # Wenn Haken NICHT gesetzt: Nur der Vibe, kein spezifisches Produkt tragen
+        prod_instr = f"Campaign for the product category '{product}', but the model is NOT wearing a specific product visibly in this shot. Focus only on the brand vibe related to '{product}'."
+        ref_reminder = ""
 
     system_prompt = """
-    You are a Senior Art Director for High-End Commercial AI Generation.
-    Write a single, highly detailed prompt for Veo/Midjourney.
+    You are a Senior Art Director for High-End Commercial AI Generation (Google Veo).
+    Write a single, highly detailed prompt in English.
     
     CRITICAL REQUIREMENTS:
-    1. SKIN: "subsurface scattering, micropore texture, visible pores, vellus hair". NO plastic skin.
-    2. POSE: Strictly follow the defined pose and gaze.
-    3. CAMERA: Include technical camera specs provided.
+    1. PRODUCT REFERENCE: If the instructions mention a "reference image" for the product, you MUST explicitly write in the final prompt that Veo should use the provided image reference for that specific item.
+    2. SKIN: "subsurface scattering, micropore texture, visible pores, vellus hair". NO plastic skin.
+    3. POSE: Strictly follow the defined pose and gaze.
+    4. CAMERA: Include technical camera specs provided.
     """
 
     user_prompt = f"""
-    Create a luxury ad prompt:
+    Create a luxury ad prompt for Veo:
     
     MODEL: {gender}, {age}, {ethnicity}.
     STYLE: {hair_color} hair ({hair_style}, {wind}), {eye_color} eyes.
@@ -171,10 +182,10 @@ def generate_prompt():
             ],
             temperature=0.7
         )
-        return response.choices[0].message.content
+        return response.choices[0].message.content, ref_reminder
     except Exception as e:
         st.error(f"Error: {e}")
-        return None
+        return None, None
 
 # --- OUTPUT ---
 if st.button("AD-CAMPAIGN STARTEN 🚀"):
@@ -182,8 +193,13 @@ if st.button("AD-CAMPAIGN STARTEN 🚀"):
         st.warning("Bitte gib ein Produkt ein!")
     else:
         with st.spinner("Writing Director's Treatment..."):
-            res = generate_prompt()
-            if res:
+            prompt_res, reminder = generate_prompt()
+            if prompt_res:
                 st.success("Prompt Generiert!")
-                st.code(res, language="text")
-                st.caption("Ready for Veo / Midjourney / Flux")
+                
+                # Hinweis anzeigen, falls Referenzbild nötig ist
+                if reminder:
+                    st.info(reminder)
+                    
+                st.code(prompt_res, language="text")
+                st.caption("Copy & Paste in Veo (und Bild hochladen falls nötig).")
