@@ -3,7 +3,7 @@ from openai import OpenAI
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Veo Campaign Director Ultimate V2",
+    page_title="Veo Campaign Director Ultimate V3",
     page_icon="🎬",
     layout="wide"
 )
@@ -48,8 +48,8 @@ with st.sidebar:
     st.info("Optimiert für Google Veo & Midjourney v6.")
 
 # --- HEADER ---
-st.title("🎬 Veo Campaign Director Ultimate (V2)")
-st.markdown("Profi-Tool für **High-End Werbekampagnen**. Volle Kontrolle über Haut, Licht, **Outfit** und Produkt-Fokus.")
+st.title("🎬 Veo Campaign Director Ultimate (V3)")
+st.markdown("Profi-Tool für **High-End Werbekampagnen**. Volle Kontrolle über **Haarstruktur**, **Exakte Farben**, Outfit und Produkt.")
 st.divider()
 
 # --- 1. MODEL LOOK ---
@@ -65,26 +65,26 @@ with col2:
     hair_color = st.text_input("Haarfarbe", value="dark brown")
 
 with col3:
-    hair_style = st.selectbox("Frisur", ["Loose & Natural", "Sleek Ponytail", "Wet Look", "Messy Bun", "Short Buzz Cut", "Bob Cut"])
-    eye_color = st.text_input("Augenfarbe", value="green")
+    # NEU: HAARSTRUKTUR SLIDER
+    hair_texture = st.select_slider("Haarstruktur", options=["Straight (Glatt)", "Wavy (Wellig)", "Curly (Lockig)", "Coily (Afro)"], value="Wavy (Wellig)")
+    hair_style = st.selectbox("Frisur-Stil", ["Loose & Open", "Sleek Ponytail", "Messy Bun", "Short Cut", "Bob Cut"])
 
 with col4:
+    eye_color = st.text_input("Augenfarbe", value="green")
     freckles = st.radio("Haut-Details", ["Klare Haut", "Sommersprossen"], horizontal=True)
-    makeup = st.select_slider("Make-up", options=["No Makeup", "Natural/Clean", "Soft Glam", "High Fashion"])
 
-# --- NEU: KLEIDUNG (OUTFIT) ---
+# --- 2. KLEIDUNG & POSE ---
 st.markdown("---")
-st.subheader("2. Kleidung & Styling")
+st.subheader("2. Kleidung, Pose & Make-up")
 c_outfit, c_pose = st.columns([1, 2])
 
 with c_outfit:
-    # NEUES FELD FÜR KLEIDUNG
     clothing = st.text_area("Was trägt das Model? (Outfit)", 
-                            placeholder="z.B. Weißes Seidenkleid, Schwarzer Rollkragenpullover, Casual T-Shirt...",
+                            placeholder="z.B. Weißes Seidenkleid, Schwarzer Rollkragenpullover...",
                             height=100)
+    makeup = st.select_slider("Make-up", options=["No Makeup", "Natural/Clean", "Soft Glam", "High Fashion"])
 
 with c_pose:
-    # POSE LOGIK (verschoben für besseres Layout)
     p1, p2, p3 = st.columns(3)
     with p1:
         pose = st.selectbox("Körperhaltung", 
@@ -118,22 +118,30 @@ with t3:
 with t4:
     lens = st.selectbox("Objektiv", ["85mm (Portrait)", "100mm Macro (Details)", "35mm (Lifestyle)", "24mm (Wide)"])
 
-# --- 4. KAMPAGNE & PRODUKT ---
+# --- 4. KAMPAGNE & HINTERGRUND (NEU: COLOR PICKER) ---
 st.markdown("---")
-st.subheader("4. Die Kampagne (Produkt & Referenz)")
+st.subheader("4. Die Kampagne (Produkt & Hintergrund)")
 k1, k2 = st.columns([1, 1])
 
 with k1:
     product = st.text_input("Produkt / Thema", placeholder="z.B. Goldene Halskette mit Rubin")
-    
-    # HIER IST DIE ANGEPASSTE LOGIK
     wear_product = st.checkbox("Exaktes Produkt wird als Bild in Veo hochgeladen? (Referenz-Bild)", value=False,
-                               help="Wenn an: Prompt befiehlt Veo, das Referenzbild zu nutzen UND den Fokus darauf zu legen.")
+                               help="Wenn an: Prompt befiehlt Veo, das Referenzbild zu nutzen.")
 
 with k2:
-    bg = st.selectbox("Hintergrund", 
-                      ["Clean White Studio", "Dark Luxury Background", "Warm Beige Tone", 
-                       "Blurred City Street", "Nature/Forest", "Blue Sky", "Abstract Gradient"])
+    # NEU: Logic für Hintergrundfarbe
+    bg_mode = st.radio("Hintergrund-Modus", ["Szenisch (Vorgefertigt)", "Einfarbig (Color Code)"], horizontal=True)
+    
+    if bg_mode == "Szenisch (Vorgefertigt)":
+        bg_selection = st.selectbox("Hintergrund wählen", 
+                          ["Clean White Studio", "Dark Luxury Background", "Warm Beige Tone", 
+                           "Blurred City Street", "Nature/Forest", "Blue Sky", "Abstract Gradient"])
+        final_bg_instruction = f"{bg_selection} background"
+    else:
+        # Der Color Picker
+        custom_color = st.color_picker("Wähle den genauen Farbcode", "#FF0044")
+        st.caption(f"Gewählter Hex-Code: {custom_color}")
+        final_bg_instruction = f"Solid background with exact hex color code {custom_color}, minimal studio style"
 
 # --- GPT GENERATION ---
 def generate_prompt():
@@ -143,39 +151,36 @@ def generate_prompt():
 
     client = OpenAI(api_key=api_key)
 
-    # --- PRODUKT FOKUS LOGIK ---
+    # Produkt Fokus
     if wear_product:
-        # HIER WURDE "SHALLOW DEPTH OF FIELD" und "FOCUS" HINZUGEFÜGT
         prod_instr = (f"CRITICAL INSTRUCTION: The user provides a reference image of the product '{product}'. "
                       f"The output prompt MUST explicitly state: 'Using the provided product reference image, ensure the model is wearing exactly this specific item.' "
-                      f"The product '{product}' MUST be the absolute visual focus of the shot (shallow depth of field highlighting the product).")
+                      f"The product '{product}' MUST be the absolute visual focus.")
         ref_reminder = "✅ WICHTIG: Lade jetzt das Bild des Produkts in Veo hoch!"
     else:
-        prod_instr = f"Campaign for the product category '{product}', but the model is NOT wearing a specific product visibly. Focus on the brand VIBE."
+        prod_instr = f"Campaign for product category '{product}', but model is NOT wearing it visibly. Focus on brand VIBE."
         ref_reminder = ""
 
-    # Check ob Kleidung angegeben wurde
-    if clothing:
-        outfit_instr = f"OUTFIT: Model is wearing {clothing}."
-    else:
-        outfit_instr = "OUTFIT: Fashionable, minimal clothing fitting the luxury vibe."
+    # Outfit
+    outfit_instr = f"OUTFIT: Model is wearing {clothing}." if clothing else "OUTFIT: Minimal luxury fashion."
 
     system_prompt = """
     You are a Senior Art Director for High-End Commercial AI Generation (Google Veo).
     Write a single, highly detailed prompt in English.
     
     MANDATORY RULES:
-    1. PRODUCT: If instructed, emphasize the product reference image and make it the focal point.
+    1. PRODUCT: If instructed, emphasize the product reference image usage.
     2. SKIN: "subsurface scattering, micropore texture, visible pores, vellus hair". NO plastic skin.
-    3. OUTFIT: Describe the clothing texture (silk, cotton, wool) based on user input.
-    4. CAMERA: Include technical camera specs provided.
+    3. HAIR: Strictly follow the hair texture (straight vs curly).
+    4. BACKGROUND: If a hex color is provided, specify a solid studio background in that color.
     """
 
     user_prompt = f"""
     Create a luxury ad prompt for Veo:
     
     MODEL: {gender}, {age}, {ethnicity}.
-    STYLE: {hair_color} hair ({hair_style}, {wind}), {eye_color} eyes.
+    HAIR: {hair_texture} texture, {hair_color}, style: {hair_style}, {wind}.
+    EYES: {eye_color}.
     SKIN/MAKEUP: {freckles}, {skin_finish} finish, {makeup} makeup.
     
     {outfit_instr}
@@ -186,7 +191,7 @@ def generate_prompt():
     - Expression: {expression}
     
     CONTEXT: {prod_instr}
-    SETTING: {bg} background. Lighting: {lighting}.
+    SETTING: {final_bg_instruction}. Lighting: {lighting}.
     
     TECHNICAL: {framing}, shot on {lens} lens. High fidelity, raw photo style.
     """
@@ -214,9 +219,7 @@ if st.button("AD-CAMPAIGN STARTEN 🚀"):
             prompt_res, reminder = generate_prompt()
             if prompt_res:
                 st.success("Prompt Generiert!")
-                
                 if reminder:
                     st.info(reminder)
-                    
                 st.code(prompt_res, language="text")
                 st.caption("Copy & Paste in Veo")
