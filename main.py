@@ -3,7 +3,7 @@ from openai import OpenAI
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Nano Banana Campaign Director (V9)",
+    page_title="Nano Banana Campaign Director (V10)",
     page_icon="🍌",
     layout="wide"
 )
@@ -30,7 +30,7 @@ st.markdown("""
     .stSelectbox, .stTextInput, .stTextArea { margin-bottom: 10px; }
     
     div.block-container { padding-top: 2rem; }
-    /* Checkbox Hervorhebung */
+    /* Checkbox Styles */
     div[data-testid="stCheckbox"] label span {
         font-weight: 600;
     }
@@ -46,17 +46,17 @@ with st.sidebar:
     else:
         api_key = st.text_input("OpenAI API Key", type="password")
     
-    st.info("Optimiert für **Nano Banana** (Gemini 2.5 Flash / 3 Pro Image).")
+    st.info("Optimiert für **Nano Banana** (Gemini 2.5 Image / Veo).")
     st.markdown("---")
-    st.caption("Version 9: Realism Update (Vellus, Imperfections, Aperture)")
+    st.caption("V10: 360° Orbit, Profi-Licht & Shot-Focus.")
 
 # --- HEADER ---
-st.title("🍌 Nano Banana Campaign Director (V9)")
-st.markdown("Erstelle ultra-realistische Prompts. Jetzt mit **Vellus Hair**, **Imperfections** und manueller **Blende**.")
+st.title("🍌 Nano Banana Campaign Director (V10)")
+st.markdown("Das ultimative Tool: **360° Kamera-Fahrten**, **Licht-Architektur** und **Fokus-Steuerung**.")
 st.divider()
 
-# --- 1. MODEL LOOK ---
-st.subheader("1. Model Details & Realismus")
+# --- 1. MODEL LOOK & REALISMUS ---
+st.subheader("1. Model & Realismus")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
@@ -73,15 +73,13 @@ with col3:
 
 with col4:
     eye_color = st.text_input("Augenfarbe", value="green")
-    
-    st.markdown("**Haut & Realismus:**")
     freckles = st.radio("Haut-Basis", ["Klare Haut", "Sommersprossen"], horizontal=True)
     
-    # NEU: VELLUS HAIR & IMPERFECTIONS
-    use_vellus = st.checkbox("Vellus Hair (Hautflaum) hinzufügen?", value=True, help="Fügt 'peach fuzz' hinzu für extremen Realismus im Gegenlicht.")
-    use_imperfections = st.checkbox("Natural Imperfections?", value=False, help="Fügt Asymmetrie, kleine Narben oder ungleichmäßige Tönung hinzu.")
+    # REALISMUS FEATURES
+    use_vellus = st.checkbox("Vellus Hair (Flaum)", value=True, help="Fügt ultra-realistische Härchen auf der Haut hinzu.")
+    use_imperfections = st.checkbox("Natural Imperfections", value=False, help="Asymmetrie und kleine Makel.")
 
-# --- 2. KLEIDUNG & POSE (NEU: CANDID MOMENTS) ---
+# --- 2. KLEIDUNG & POSE ---
 st.markdown("---")
 st.subheader("2. Kleidung, Pose & Moments")
 c_outfit, c_pose = st.columns([1, 2])
@@ -93,182 +91,153 @@ with c_outfit:
     makeup = st.select_slider("Make-up", options=["No Makeup", "Natural/Clean", "Soft Glam", "High Fashion"])
 
 with c_pose:
-    # Logic für Candid Moments
-    use_candid = st.checkbox("📸 Candid Moment (Ungestellter Schnappschuss)?", value=False)
+    use_candid = st.checkbox("📸 Candid Moment (Ungestellt)?", value=False)
     
     p1, p2, p3 = st.columns(3)
     
     if use_candid:
         with p1:
-            candid_moment = st.selectbox("Welcher Moment?", 
-                                         ["Caught off guard (Überrascht)", "Laughing mid-sentence", 
-                                          "Fixing Hair (Haare richten)", "Looking past camera (Abgelenkt)", 
-                                          "Deep in thought (Nachdenklich)", "Adjusting clothes (Kleidung richten)"])
-            pose = f"Candid Shot: {candid_moment}" # Überschreibt die Standard-Pose
+            candid_moment = st.selectbox("Moment", ["Caught off guard", "Laughing mid-sentence", "Fixing Hair", "Looking past camera"])
+            pose = f"Candid Shot: {candid_moment}"
             gaze = "Natural / Ungestellt"
-            expression = "Authentic / Spontan"
+            expression = "Authentic"
     else:
-        # Standard Pose Auswahl (wenn Candid AUS ist)
         with p1:
             pose = st.selectbox("Körperhaltung", 
                                 ["Standing Upright (Power Pose)", "Relaxed Leaning", "Walking towards Camera", 
                                  "Sitting Elegantly", "Dynamic Action", "Over the Shoulder"])
         with p2:
             gaze = st.selectbox("Blickrichtung", 
-                                ["Straight into Camera (Eye Contact)", "Looking away (Dreamy)", 
-                                 "Looking down", "Looking up"])
+                                ["Straight into Camera", "Looking away (Dreamy)", "Looking down", "Looking up"])
         with p3:
             expression = st.selectbox("Gesichtsausdruck", 
                                       ["Neutral & Cool", "Confident Smile", "Laughing", "Fierce/Intense", "Seductive"])
     
-    if not use_candid:
-        with p3:
-             wind = st.select_slider("Haar-Dynamik", options=["Static", "Soft Breeze", "Strong Wind"], value="Soft Breeze")
-    else:
-        wind = "Natural movement"
+    wind = "Natural movement" if use_candid else st.select_slider("Haar-Dynamik", options=["Static", "Soft Breeze", "Strong Wind"], value="Soft Breeze")
 
 
-# --- 3. TECHNIK & CINEMATOGRAPHY (NEU: BLENDE) ---
+# --- 3. TECHNIK, LICHT & KAMERA (NEU: 360 ORBIT & LIGHTING) ---
 st.markdown("---")
-st.subheader("3. Technik, Film-Look & Kamera")
+st.subheader("3. Kamera, Licht & Atmosphäre")
 t1, t2, t3, t4 = st.columns(4)
 
 with t1:
-    cam_move = st.selectbox("Kamera-Bewegung", 
-                            ["Static Tripod", "Slow Zoom In", "Handheld", "Drone Orbit"])
+    # NEU: 360 ORBIT
+    cam_move = st.selectbox("Kamera-Bewegung (Video)", 
+                            ["360° Orbit (Circle around Model)", "Static Tripod", "Slow Zoom In", "Handheld", "Drone Orbit (Landscape)"])
+    
+    # NEU: SHOT FOCUS
+    shot_focus = st.selectbox("Shot Focus (Wer ist der Star?)",
+                              ["Balanced (Model + Product)", "Model Hero (Face Focus)", "Product Hero (Blurry Model)", "Detail Shot (Hands/Product Only)"])
 
 with t2:
-    film_look = st.selectbox("Film Look", 
-                             ["Standard Commercial", "Kodak Portra 400 (Warm)", 
-                              "Teal & Orange", "Black & White", 
-                              "Pastel/Dreamy", "Moody/Desaturated"])
+    # NEU: LICHT ARCHITEKT
+    lighting = st.selectbox("Licht-Setup (Profi)", 
+                            ["Butterfly Lighting (Beauty)", "Split Lighting (Dramatic Side)", "Rim Light / Backlight (Halo Effect)", 
+                             "Rembrandt (Classic)", "Golden Hour (Sun)", "Softbox Studio (Clean)", "Neon / Cyberpunk"])
 
 with t3:
+    film_look = st.selectbox("Film Look", 
+                             ["Standard Commercial", "Kodak Portra 400", "Teal & Orange", "Black & White", "Pastel/Dreamy", "Moody/Dark"])
     framing = st.selectbox("Ausschnitt", ["Extreme Close-Up", "Portrait", "Medium Shot", "Full Body"])
 
 with t4:
     lens = st.selectbox("Objektiv", ["85mm (Portrait)", "100mm Macro", "35mm (Lifestyle)", "24mm (Wide)"])
     
-    # NEU: BLENDE / APERTURE
     use_aperture = st.checkbox("Manuelle Blende?", value=False)
-    if use_aperture:
-        aperture = st.selectbox("Blendenöffnung (f-stop)", 
-                                ["f/1.2 (Extreme Bokeh/Background Blur)", 
-                                 "f/1.8 (Soft Background)", 
-                                 "f/2.8 (Standard Portrait)", 
-                                 "f/8.0 (Alles scharf/Studio)"])
-    else:
-        aperture = None
+    aperture = st.selectbox("Blende", ["f/1.2 (Bokeh)", "f/1.8 (Soft)", "f/8.0 (Sharp)"]) if use_aperture else None
 
-# --- 4. SETTING, PRODUKT & REFERENZ ---
+# --- 4. FORMAT & PRODUKT ---
 st.markdown("---")
-st.subheader("4. Format, Produkt & Nano-Features")
+st.subheader("4. Format, Produkt & Referenz")
 k1, k2 = st.columns([1, 1])
 
 with k1:
-    product = st.text_input("Produkt / Thema", placeholder="z.B. Goldene Halskette mit Rubin")
+    product = st.text_input("Produkt / Thema", placeholder="z.B. Goldene Halskette")
     
     st.markdown("---")
-    use_size = st.checkbox("Spezifische Größe (cm) angeben?", value=False)
-    
+    use_size = st.checkbox("Spezifische Größe (cm)?", value=False)
     if use_size:
-        st.caption("Größen-Einstellungen:")
-        obj_type = st.radio("Art des Objekts", ["Kettenanhänger (Schmuck)", "Allgemeines Objekt"], horizontal=True)
-        obj_size = st.slider(f"Größe in cm", 0.5, 5.0, 2.5, 0.1)
+        obj_type = st.radio("Objekt Art", ["Kettenanhänger", "Objekt"], horizontal=True)
+        obj_size = st.slider(f"Größe (cm)", 0.5, 5.0, 2.5, 0.1)
     else:
-        obj_type = None
-        obj_size = None
+        obj_type, obj_size = None, None
     
     st.markdown("---")
-    wear_product = st.checkbox("Referenz-Bild wird in Nano Banana hochgeladen?", value=False,
-                               help="Prompt wird für Image-Upload optimiert.")
+    wear_product = st.checkbox("Referenz-Bild hochladen?", value=False, help="Prompt für Bild-Upload optimieren.")
 
 with k2:
     st.markdown("**Bildformat:**")
-    aspect_ratio = st.selectbox("Format wählen", 
-                                ["Querformat (16:9)", "Hochformat (9:16)", "Quadrat (1:1)", "Cinematic (21:9)"])
+    aspect_ratio = st.selectbox("Format", ["Querformat (16:9)", "Hochformat (9:16)", "Quadrat (1:1)", "Cinematic (21:9)"])
 
-    st.markdown("**Hintergrund & Wetter:**")
-    weather = st.selectbox("Wetter / Atmosphäre", 
-                           ["Clear/Sunny", "Cloudy/Soft", "Rainy/Wet Skin", "Foggy/Misty", "Snowing"])
+    st.markdown("**Hintergrund:**")
+    weather = st.selectbox("Wetter", ["Clear/Sunny", "Cloudy", "Rainy/Wet", "Foggy", "Snowing"])
     
-    bg_mode = st.radio("Hintergrund-Modus", ["Szenisch", "Einfarbig"], horizontal=True, label_visibility="collapsed")
-    
+    bg_mode = st.radio("Hintergrund", ["Szenisch", "Einfarbig"], horizontal=True, label_visibility="collapsed")
     if bg_mode == "Szenisch":
-        bg_selection = st.selectbox("Hintergrund Szenario", 
-                          ["Clean White Studio", "Dark Luxury Background", "Warm Beige Tone", 
-                           "Blurred City Street", "Nature/Forest", "Blue Sky", "Abstract Gradient"])
-        final_bg_instruction = f"{bg_selection} background"
+        bg_sel = st.selectbox("Szenario", ["Clean White Studio", "Dark Luxury", "Warm Beige", "City Street", "Nature", "Blue Sky", "Abstract"])
+        final_bg = f"{bg_sel} background"
     else:
-        custom_color = st.color_picker("Wähle Farbe", "#FF0044")
-        final_bg_instruction = f"Solid background with exact hex color code {custom_color}, minimal studio style"
-    
-    lighting = st.selectbox("Licht-Setzung", ["Soft Beauty Light", "Golden Hour", "Rembrandt", "Cinematic Contrast", "Neon"])
+        col = st.color_picker("Farbe", "#FF0044")
+        final_bg = f"Solid background hex {col}"
 
-# --- GPT GENERATION FOR NANO BANANA ---
+# --- PROMPT GENERATION ---
 def generate_prompt():
     if not api_key:
         st.error("⚠️ API Key fehlt!")
         return None
-
     client = OpenAI(api_key=api_key)
 
-    # FORMAT LOGIK
-    if "16:9" in aspect_ratio: ar_text = "Aspect Ratio: 16:9 (Wide)"
+    # FORMAT
+    if "16:9" in aspect_ratio: ar_text = "Aspect Ratio: 16:9"
     elif "9:16" in aspect_ratio: ar_text = "Aspect Ratio: 9:16 (Vertical)"
-    elif "21:9" in aspect_ratio: ar_text = "Aspect Ratio: 21:9 (Cinematic)"
-    else: ar_text = "Aspect Ratio: 1:1 (Square)"
+    elif "21:9" in aspect_ratio: ar_text = "Aspect Ratio: 21:9"
+    else: ar_text = "Aspect Ratio: 1:1"
+
+    # KAMERA BEWEGUNG LOGIK (360 ORBIT)
+    if "360° Orbit" in cam_move:
+        move_instr = "CAMERA MOVEMENT: Smooth continuous 360-degree orbital camera movement circling the central subject, keeping the model perfectly centered while revealing the outfit and product from all angles."
+    else:
+        move_instr = f"CAMERA MOVEMENT: {cam_move}."
 
     # GRÖSSE
     size_instr = ""
     if use_size and obj_size:
-        if obj_type == "Kettenanhänger (Schmuck)":
-            size_instr = f"SCALE: The necklace pendant must be rendered exactly {obj_size}cm in height, appearing delicate."
-        else:
-            size_instr = f"SCALE: The product object is approximately {obj_size}cm in size relative to the model."
+        size_instr = f"SCALE: Object exactly {obj_size}cm in size."
 
-    # PRODUKT
+    # PRODUKT & FOKUS
     if wear_product:
-        prod_instr = (f"CRITICAL FOR NANO BANANA: The user is providing a REFERENCE IMAGE of the product '{product}'. "
-                      f"Instructions: 'Use the uploaded reference image to perform precise in-context blending. "
-                      f"The model should be wearing exactly this item.' Focus strictly on '{product}'. {size_instr}")
-        ref_reminder = "✅ WICHTIG: Lade jetzt dein Produkt-Bild in Nano Banana (Gemini) hoch!"
+        prod_instr = (f"CRITICAL: User provides REFERENCE IMAGE for '{product}'. "
+                      f"Prompt: 'Use reference image for exact item blending.' Focus: '{product}'. {size_instr}")
+        ref_reminder = "✅ WICHTIG: Referenzbild hochladen!"
     else:
-        prod_instr = f"Campaign for '{product}'. Model is NOT wearing a specific reference item. Generate a high-quality representation based on description. {size_instr}"
+        prod_instr = f"Campaign for '{product}'. Focus on vibe. {size_instr}"
         ref_reminder = ""
 
-    outfit_instr = f"OUTFIT: Model is wearing {clothing}." if clothing else "OUTFIT: High-fashion minimal clothing."
-
-    # REALISMUS LOGIK (Vellus & Imperfections)
-    skin_details = freckles # Basis
-    if use_vellus:
-        skin_details += ", visible vellus hair (peach fuzz) on cheeks (backlit)"
-    if use_imperfections:
-        skin_details += ", slight natural asymmetry, authentic skin micro-imperfections, not 100% perfect symmetry"
+    # SHOT FOCUS LOGIK
+    if shot_focus == "Model Hero (Face Focus)":
+        focus_instr = "FOCUS: Sharp focus on the model's face and expression. Background and product slightly secondary."
+    elif shot_focus == "Product Hero (Blurry Model)":
+        focus_instr = f"FOCUS: Extreme focus on the '{product}'. The model's face should be slightly out of focus (bokeh) to highlight the item."
+    elif shot_focus == "Detail Shot (Hands/Product Only)":
+        focus_instr = f"FOCUS: Macro detail shot of '{product}'. Crop in tight, faces might be cut off."
     else:
-        skin_details += ", flawless but textured skin"
+        focus_instr = "FOCUS: Perfectly balanced focus between model and product."
 
-    # BLENDE LOGIK
-    tech_specs = f"{framing}, shot on {lens}"
-    if use_aperture and aperture:
-        tech_specs += f", aperture {aperture}"
-        if "f/1.2" in aperture or "f/1.8" in aperture:
-            tech_specs += ", strong bokeh depth of field"
+    outfit_instr = f"OUTFIT: {clothing}." if clothing else "OUTFIT: High-fashion minimal."
 
-    atmosphere_instr = f"ATMOSPHERE: {weather}. COLOR GRADE: {film_look}."
+    # REALISMUS
+    skin_details = freckles
+    if use_vellus: skin_details += ", visible vellus hair (peach fuzz) on cheeks"
+    if use_imperfections: skin_details += ", natural asymmetry, micro-imperfections"
 
-    # SYSTEM PROMPT
+    tech_specs = f"{framing}, {lens}, {lighting}"
+    if use_aperture and aperture: tech_specs += f", {aperture}"
+
     system_prompt = """
-    You are an expert Prompt Engineer for Google's 'Nano Banana' (Gemini 2.5 Flash Image).
-    
-    YOUR GOAL:
-    Write a single, comprehensive prompt in English that forces HYPER-REALISM.
-    
-    MANDATORY:
-    1. If 'vellus hair' is requested, explicitly mention "visible peach fuzz on skin".
-    2. If 'imperfections' are requested, mention "natural asymmetry, raw skin texture".
-    3. If 'aperture' is provided, ensure the depth of field description matches (blurred background vs sharp).
-    4. Use keywords: "subsurface scattering, micropore texture, 8k, raw photograph".
+    You are an expert Prompt Engineer for Nano Banana (Gemini 2.5 Image).
+    Write a single, comprehensive prompt triggering HYPER-REALISM.
+    Include specific camera movements (especially 360 orbit if requested) and lighting setups.
     """
 
     user_prompt = f"""
@@ -276,25 +245,25 @@ def generate_prompt():
     
     SUBJECT: {gender}, {age}, {ethnicity}.
     LOOK: {hair_texture}, {hair_color}, {hair_style}, {wind}. {eye_color} eyes.
-    SKIN REALISM: {skin_details}. (Ensure subsurface scattering).
+    SKIN: {skin_details}. (Subsurface scattering).
     
-    POSE & MOMENT: {pose}.
-    GAZE: {gaze}. EXPRESSION: {expression}.
+    POSE: {pose}. GAZE: {gaze}.
     
-    PRODUCT CONTEXT: {prod_instr}
+    CONTEXT: {prod_instr}
+    FOCUS PRIORITY: {focus_instr}
     
-    SCENE: {final_bg_instruction}. {lighting}. {atmosphere_instr}.
-    CAMERA TECH: {tech_specs}. {cam_move}.
+    SCENE: {final_bg}. ATMOSPHERE: {weather}. COLOR: {film_look}.
+    TECH: {tech_specs}.
+    
+    {move_instr}
+    
     FORMAT: {ar_text}.
     """
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
             temperature=0.7
         )
         return response.choices[0].message.content, ref_reminder
@@ -305,13 +274,11 @@ def generate_prompt():
 # --- OUTPUT ---
 if st.button("NANO BANANA PROMPT GENERIEREN 🍌"):
     if not product:
-        st.warning("Bitte gib ein Produkt ein!")
+        st.warning("Bitte Produkt eingeben!")
     else:
-        with st.spinner("Optimiere für Gemini 2.5 / Nano Banana..."):
-            prompt_res, reminder = generate_prompt()
-            if prompt_res:
-                st.success("🍌 Nano Banana Prompt fertig!")
-                if reminder:
-                    st.info(reminder)
-                st.code(prompt_res, language="text")
-                st.caption("Kopiere diesen Text in Google Gemini / Nano Banana Interface.")
+        with st.spinner("Rendere Prompt..."):
+            res, reminder = generate_prompt()
+            if res:
+                st.success("Prompt fertig!")
+                if reminder: st.info(reminder)
+                st.code(res, language="text")
