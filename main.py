@@ -409,6 +409,71 @@ if use_video:
         else:
             ambient_sound = ""
 
+    # Head, Face & Micro-Movements (separate row)
+    st.markdown("**Kopf, Gesicht & Micro-Movements**")
+    h1, h2, h3 = st.columns(3)
+
+    with h1:
+        head_movement = st.selectbox("Kopfbewegung", [
+            "Keine (statisch)",
+            "Slow head turn to camera",
+            "Slow head turn away from camera",
+            "Gentle head tilt to one side",
+            "Chin up (confident / proud)",
+            "Chin down, eyes up (seductive)",
+            "Head follows product in hand",
+            "Subtle nod (agreeing / confident)",
+            "Head sway side to side (relaxed)",
+            "Looks down then up to camera (reveal)"
+        ])
+
+        head_speed = st.select_slider("Kopf-Tempo",
+                                      options=["Ultra Slow", "Slow", "Natural", "Quick"],
+                                      value="Slow")
+
+    with h2:
+        eye_movement = st.selectbox("Augen / Blick-Animation", [
+            "Keine (fixiert)",
+            "Slow eye contact to camera (the look)",
+            "Eyes wander, then lock on camera",
+            "Blink naturally (2-3 times)",
+            "Slow deliberate blink (sensual)",
+            "Eyes follow product / hand movement",
+            "Squint slightly (sun / intensity)",
+            "Eyes widen (surprise / excitement)",
+            "Look down at product, then up"
+        ])
+
+        eyebrow_move = st.selectbox("Augenbrauen", [
+            "Keine Bewegung",
+            "Subtle raise (interested)",
+            "One eyebrow up (playful / cheeky)",
+            "Slight furrow (intense / focused)",
+            "Raise then relax (surprised then calm)"
+        ])
+
+    with h3:
+        mouth_movement = st.selectbox("Mund / Lippen", [
+            "Keine Bewegung",
+            "Subtle smile develops slowly",
+            "Lips part slightly (sensual)",
+            "Bites lower lip gently",
+            "Smirk / half smile (one side)",
+            "Mouth opens to slight laugh",
+            "Licks lips subtly",
+            "Pout / duck face (playful)"
+        ])
+
+        micro_expressions = st.multiselect("Micro-Expressions (mehrere wählbar)", [
+            "Subtle breathing (chest rises)",
+            "Jaw clench then relax",
+            "Nostril flare (intensity)",
+            "Swallow (throat movement)",
+            "Shoulder shrug (casual)",
+            "Deep breath in (anticipation)",
+            "Neck stretch / tension release"
+        ], help="Kleine Details die das Video lebendig machen.")
+
 
 # --- PROMPT BUILD (LOCAL) ---
 def build_prompt_local():
@@ -561,6 +626,18 @@ def build_video_prompt(image_prompt):
         camera_video_move=camera_video_move,
         has_wind=has_wind,
         wind_type=wind_type,
+        # Head & Face
+        has_head_movement=head_movement != "Keine (statisch)",
+        head_movement=head_movement,
+        head_speed=head_speed,
+        has_eye_movement=eye_movement != "Keine (fixiert)",
+        eye_movement=eye_movement,
+        has_eyebrow=eyebrow_move != "Keine Bewegung",
+        eyebrow_move=eyebrow_move,
+        has_mouth=mouth_movement != "Keine Bewegung",
+        mouth_movement=mouth_movement,
+        micro_list=", ".join(micro_expressions) if micro_expressions else "",
+        # Sound
         has_dialogue=has_dialogue if use_video else False,
         dialogue_text=dialogue_text if use_video and has_dialogue else "",
         voice_tone=voice_tone if use_video and has_dialogue else "",
