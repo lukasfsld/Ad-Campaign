@@ -1,0 +1,25 @@
+{{ image_prompt }}
+
+--- VEO3 VIDEO GENERATION ---
+
+DURATION: {{ duration }} seconds.
+ASPECT RATIO: {{ video_ratio }}.
+
+ACTION: {{ model_action }}.
+{% if action_detail %}DETAIL: {{ action_detail }}.{% endif %}
+
+MOVEMENT SPEED: {{ movement_speed }}.
+{{ camera_video_move }}
+
+{% if has_wind %}WIND: {{ wind_type }}. Hair and fabric react naturally to {{ wind_type | lower }}.{% endif %}
+
+{% if has_dialogue %}
+AUDIO/DIALOGUE: The model says: "{{ dialogue_text }}"
+VOICE TONE: {{ voice_tone }}.
+LIP SYNC: Perfectly synchronized lip movement matching the spoken words.
+{% endif %}
+
+{% if has_ambient_sound %}AMBIENT SOUND: {{ ambient_sound }}.{% endif %}
+
+VIDEO QUALITY: Cinematic 4K, smooth {{ fps }}fps, natural motion blur, film-grade color grading, no flickering, no morphing artifacts.
+CONSISTENCY: Maintain identical model appearance, clothing, lighting and environment throughout the entire clip. No identity drift.
