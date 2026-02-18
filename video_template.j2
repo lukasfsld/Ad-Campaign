@@ -11,15 +11,30 @@ ACTION: {{ model_action }}.
 MOVEMENT SPEED: {{ movement_speed }}.
 {{ camera_video_move }}
 
+{% if has_head_movement %}
+HEAD MOVEMENT: {{ head_movement }}. Speed: {{ head_speed }}. The motion should feel organic and intentional, not robotic.
+{% endif %}
+
+{% if has_eye_movement %}
+EYE ANIMATION: {{ eye_movement }}.
+{% endif %}
+{% if has_eyebrow %}EYEBROWS: {{ eyebrow_move }}.{% endif %}
+{% if has_mouth %}MOUTH: {{ mouth_movement }}.{% endif %}
+
+{% if micro_list %}
+MICRO-EXPRESSIONS: {{ micro_list }}. These subtle movements should occur naturally throughout the clip to create a living, breathing presence.
+{% endif %}
+
 {% if has_wind %}WIND: {{ wind_type }}. Hair and fabric react naturally to {{ wind_type | lower }}.{% endif %}
 
 {% if has_dialogue %}
 AUDIO/DIALOGUE: The model says: "{{ dialogue_text }}"
 VOICE TONE: {{ voice_tone }}.
-LIP SYNC: Perfectly synchronized lip movement matching the spoken words.
+LIP SYNC: Perfectly synchronized lip movement matching the spoken words. Jaw, cheeks and throat move naturally with speech.
 {% endif %}
 
 {% if has_ambient_sound %}AMBIENT SOUND: {{ ambient_sound }}.{% endif %}
 
 VIDEO QUALITY: Cinematic 4K, smooth {{ fps }}fps, natural motion blur, film-grade color grading, no flickering, no morphing artifacts.
 CONSISTENCY: Maintain identical model appearance, clothing, lighting and environment throughout the entire clip. No identity drift.
+REALISM: All facial and body movements must be fluid, human-like, and physically plausible. No uncanny valley stiffness.
