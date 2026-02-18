@@ -12,12 +12,15 @@ st.set_page_config(
 )
 
 # --- LOAD TEMPLATE & PRESETS ---
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Works on both local and Streamlit Cloud
+from pathlib import Path
 
-with open(os.path.join(SCRIPT_DIR, "prompt_template.j2"), "r") as f:
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+with open(SCRIPT_DIR / "prompt_template.j2", "r", encoding="utf-8") as f:
     PROMPT_TEMPLATE = Template(f.read())
 
-with open(os.path.join(SCRIPT_DIR, "presets.json"), "r") as f:
+with open(SCRIPT_DIR / "presets.json", "r", encoding="utf-8") as f:
     PRESETS = json.load(f)
 
 # --- SESSION STATE ---
