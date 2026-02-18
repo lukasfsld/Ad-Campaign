@@ -1,0 +1,36 @@
+Ultra-realistic {{ aspect_ratio }} commercial campaign photograph.
+
+SUBJECT: {{ gender }}, age {{ age }}, {{ ethnicity }}, {{ eye_color }} eyes.
+HAIR: {{ hair_color }}, {{ hair_texture }}, styled {{ hair_style }}, {{ wind }}.
+SKIN: {{ skin_details }}. Visible subsurface scattering, pore-level detail, natural skin translucency.
+
+{% if expression == "Authentic" -%}
+POSE: {{ pose }}. Unposed, natural body language. Genuine {{ candid_moment }} expression captured mid-moment.
+{% else -%}
+POSE: {{ pose }}. GAZE: {{ gaze }}. EXPRESSION: {{ expression }}.
+{% endif -%}
+
+MAKEUP: {{ makeup }}.
+{{ outfit_instr }}
+
+PRODUCT: {{ prod_instr }}
+{{ focus_instr }}
+{% if size_instr %}{{ size_instr }}{% endif %}
+
+LIGHTING: {{ lighting }}.
+{% if lighting_details %}{{ lighting_details }}{% endif %}
+
+CAMERA: {{ framing }} framing, shot on {{ lens }}.
+{% if aperture %}Aperture: {{ aperture }}.{% endif %}
+FILM STOCK: {{ film_look }}.
+
+{{ move_instr }}
+
+SCENE: {{ final_bg }}. WEATHER: {{ weather }}.
+
+FORMAT: {{ ar_text }}.
+
+QUALITY KEYWORDS: 8K resolution, hyper-realistic, editorial quality, professional color grading, volumetric lighting, micro-detail rendering, photorealistic skin texture, magazine cover quality.
+{% if ref_reminder %}
+NOTE: {{ ref_reminder }}
+{% endif %}
