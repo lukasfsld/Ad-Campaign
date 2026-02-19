@@ -1451,6 +1451,128 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
         return None, None
 
 
+def generate_video_veo(prompt_text, gemini_api_key):
+    """Generate a video using Veo 3 via the Gemini API. Returns video bytes or None."""
+    import time as _time
+
+    BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+
+    # Try Veo models in order of preference
+    veo_models = [
+        "veo-3.0-generate-preview",
+        "veo-3.1-generate-preview",
+        "veo-2.0-generate-001",
+    ]
+
+    operation_name = None
+    used_model = None
+
+    for model in veo_models:
+        url = f"{BASE_URL}/models/{model}:predictLongRunning"
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": gemini_api_key,
+        }
+        payload = {
+            "instances": [{
+                "prompt": prompt_text
+            }]
+        }
+
+        try:
+            resp = requests.post(url, json=payload, headers=headers, timeout=60)
+            if resp.status_code == 404:
+                continue  # Try next model
+            resp.raise_for_status()
+            data = resp.json()
+            operation_name = data.get("name")
+            used_model = model
+            break
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                continue
+            elif e.response.status_code == 503:
+                continue  # Model busy, try next
+            elif e.response.status_code == 429:
+                error_detail = ""
+                try:
+                    error_detail = e.response.json().get("error", {}).get("message", "")
+                except:
+                    pass
+                st.error(f"Veo Quota überschritten. {error_detail}")
+                return None
+            else:
+                error_detail = ""
+                try:
+                    error_detail = e.response.json().get("error", {}).get("message", "")
+                except:
+                    pass
+                st.error(f"Veo API Fehler ({model}): {e}\n{error_detail}")
+                return None
+        except Exception as e:
+            continue
+
+    if not operation_name:
+        st.error("❌ Kein Veo-Modell verfügbar. Prüfe deinen API Key und ob Billing aktiviert ist.")
+        return None
+
+    st.info(f"🤖 Verwende Veo-Modell: **{used_model}**")
+
+    # Poll for completion
+    poll_url = f"{BASE_URL}/{operation_name}"
+    poll_headers = {"x-goog-api-key": gemini_api_key}
+
+    progress_bar = st.progress(0, text="Video wird generiert...")
+    max_wait = 300  # 5 minutes max
+    elapsed = 0
+    poll_interval = 5
+
+    while elapsed < max_wait:
+        _time.sleep(poll_interval)
+        elapsed += poll_interval
+        progress_bar.progress(min(elapsed / max_wait, 0.95), text=f"Video wird generiert... ({elapsed}s)")
+
+        try:
+            poll_resp = requests.get(poll_url, headers=poll_headers, timeout=30)
+            poll_resp.raise_for_status()
+            poll_data = poll_resp.json()
+
+            if poll_data.get("done"):
+                progress_bar.progress(1.0, text="✅ Video fertig!")
+
+                # Extract video
+                response_data = poll_data.get("response", {})
+                videos = response_data.get("generateVideoResponse", {}).get("generatedSamples", [])
+
+                if not videos:
+                    # Try alternate response structure
+                    videos = response_data.get("generatedSamples", [])
+
+                if videos:
+                    video_info = videos[0].get("video", {})
+                    # Video might be base64 encoded or a URI
+                    if "bytesBase64Encoded" in video_info:
+                        video_bytes = base64.b64decode(video_info["bytesBase64Encoded"])
+                        return video_bytes
+                    elif "uri" in video_info:
+                        # Download from URI
+                        video_url = video_info["uri"]
+                        vid_resp = requests.get(video_url, timeout=120)
+                        vid_resp.raise_for_status()
+                        return vid_resp.content
+
+                st.error("Video generiert, aber kein Download möglich. Prüfe die API-Antwort.")
+                return None
+
+        except Exception as e:
+            # Continue polling on transient errors
+            continue
+
+    progress_bar.progress(1.0, text="⏰ Timeout")
+    st.error("Video-Generierung hat zu lange gedauert (>5 Min). Bitte nochmal versuchen.")
+    return None
+
+
 # --- OUTPUT ---
 st.markdown("---")
 
@@ -1463,6 +1585,8 @@ if "last_product_prompt" not in st.session_state:
     st.session_state.last_product_prompt = None
 if "generated_images" not in st.session_state:
     st.session_state.generated_images = []
+if "generated_videos" not in st.session_state:
+    st.session_state.generated_videos = []
 
 # --- GENERATION MODE SELECTOR ---
 st.markdown('<div class="section-card"><h3>🚀 Generieren</h3></div>', unsafe_allow_html=True)
@@ -1619,6 +1743,44 @@ if st.session_state.last_image_prompt:
             if st.button("🗑️ Generierte Campaign-Bilder löschen"):
                 st.session_state.generated_images = [img for img in st.session_state.generated_images if img["type"] != "campaign"]
                 st.rerun()
+
+# --- GENERATE VIDEO WITH VEO ---
+if st.session_state.last_video_prompt:
+    st.markdown("---")
+    st.markdown("### 🎬 Video mit Veo generieren")
+
+    if not gemini_key:
+        st.warning("⚠️ Gemini API Key fehlt! Veo nutzt den gleichen API Key.")
+
+    if st.button("🎬 VIDEO JETZT ERSTELLEN MIT VEO", disabled=not gemini_key):
+        with st.spinner("Veo generiert Video... (kann 1-5 Min. dauern)"):
+            video_bytes = generate_video_veo(
+                st.session_state.last_video_prompt, gemini_key
+            )
+        if video_bytes:
+            st.session_state.generated_videos.append({
+                "bytes": video_bytes,
+                "type": "campaign",
+                "time": datetime.now().strftime("%H:%M:%S"),
+            })
+
+    # Show generated videos
+    campaign_vids = [v for v in st.session_state.generated_videos if v["type"] == "campaign"]
+    if campaign_vids:
+        st.markdown("### 🎥 Generierte Videos")
+        for idx, vid in enumerate(campaign_vids):
+            st.video(vid["bytes"], format="video/mp4")
+            st.download_button(
+                label=f"💾 Video #{idx+1} speichern (.mp4)",
+                data=vid["bytes"],
+                file_name=f"nano_banana_video_{idx+1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4",
+                mime="video/mp4",
+                key=f"dl_video_{idx}_{vid['time']}"
+            )
+
+        if st.button("🗑️ Generierte Videos löschen"):
+            st.session_state.generated_videos = [v for v in st.session_state.generated_videos if v["type"] != "campaign"]
+            st.rerun()
 
 
 # --- PRODUCT ONLY BUTTON ---
