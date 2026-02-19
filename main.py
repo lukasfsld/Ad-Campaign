@@ -23,6 +23,9 @@ with open(SCRIPT_DIR / "prompt_template.j2", "r", encoding="utf-8") as f:
 with open(SCRIPT_DIR / "video_template.j2", "r", encoding="utf-8") as f:
     VIDEO_TEMPLATE = Template(f.read())
 
+with open(SCRIPT_DIR / "product_template.j2", "r", encoding="utf-8") as f:
+    PRODUCT_TEMPLATE = Template(f.read())
+
 with open(SCRIPT_DIR / "presets.json", "r", encoding="utf-8") as f:
     PRESETS = json.load(f)
 
@@ -475,6 +478,219 @@ if use_video:
         ], help="Kleine Details die das Video lebendig machen.")
 
 
+# --- 6. PRODUCT ONLY SHOT ---
+st.markdown("---")
+st.subheader("6. 💎 Product Only Shot (ohne Model)")
+use_product_only = st.checkbox("Product-Only Prompt aktivieren", value=False,
+                               help="Erstellt einen separaten Prompt NUR für das Produkt – perfekt für Katalog, E-Commerce, Detail-Shots.")
+
+if use_product_only:
+    st.markdown("---")
+
+    po1, po2 = st.columns(2)
+
+    with po1:
+        st.markdown("**Produkt-Details**")
+        prod_name = st.text_input("Produktname", value=product if product else "",
+                                  placeholder="z.B. Goldene Kette mit Diamant-Anhänger",
+                                  key="prod_only_name")
+        prod_description = st.text_area("Beschreibung (optional)",
+                                        placeholder="z.B. 18K Gold, 2mm Gliederkette, runder Anhänger mit 0.5ct Diamant",
+                                        height=80, key="prod_only_desc")
+        prod_material = st.selectbox("Material", [
+            "— Nicht angeben —",
+            "Gold (glänzend)",
+            "Gold (matt/gebürstet)",
+            "Silber / Sterling Silver",
+            "Rosegold",
+            "Platin",
+            "Edelstahl",
+            "Leder",
+            "Stoff / Textil",
+            "Keramik",
+            "Holz",
+            "Glas / Kristall",
+            "Kunststoff / Acryl",
+            "Perlen",
+            "Diamant / Edelsteine"
+        ])
+        if prod_material == "— Nicht angeben —":
+            prod_material = ""
+
+        prod_size_text = st.text_input("Größe (optional)", placeholder="z.B. 45cm Kette, Anhänger 1.5cm",
+                                       key="prod_only_size")
+
+    with po2:
+        st.markdown("**Platzierung & Präsentation**")
+        prod_placement = st.selectbox("Wie liegt / schwebt das Produkt?", [
+            "Floating in air (schwebend, freistehend)",
+            "Lying flat on surface",
+            "Draped over curved fabric (Stoff-Wölbung)",
+            "Hanging / suspended from above",
+            "Standing upright on display",
+            "Resting on stone / marble slab",
+            "Placed on wooden surface",
+            "Nestled in velvet box / cushion",
+            "Wrapped around display bust (Schmuck-Büste)",
+            "Scattered artfully (mehrere Teile)",
+            "In hand (close-up, no face)",
+            "On mirror surface (Spiegelung)"
+        ])
+
+        prod_arrangement = st.selectbox("Anordnung", [
+            "Single Hero Product",
+            "Product + Packaging",
+            "Multiple color variants side by side",
+            "Flat Lay (Draufsicht, mehrere Items)",
+            "Stacked / layered"
+        ])
+
+        prod_angle = st.selectbox("Kamera-Winkel", [
+            "Straight on (Augenhöhe)",
+            "Slightly above (30°, klassisch)",
+            "Top down / Bird's eye (90°)",
+            "Low angle (von unten, dramatisch)",
+            "45° angle (dynamisch)",
+            "Macro extreme close-up"
+        ])
+
+    st.markdown("---")
+    po3, po4 = st.columns(2)
+
+    with po3:
+        st.markdown("**Oberfläche & Untergrund**")
+        prod_surface = st.selectbox("Untergrund-Material", [
+            "— Keiner (schwebend) —",
+            "Weißer Marmor",
+            "Schwarzer Marmor",
+            "Helles Holz (Eiche / Birke)",
+            "Dunkles Holz (Walnuss / Mahagoni)",
+            "Beton / Concrete",
+            "Samt / Velvet (schwarz)",
+            "Samt / Velvet (bordeaux)",
+            "Samt / Velvet (navy)",
+            "Seide / Silk (weiß)",
+            "Seide / Silk (champagner)",
+            "Leinen / Linen (naturfarben)",
+            "Wasser / Wassertropfen",
+            "Sand",
+            "Blütenblätter",
+            "Spiegel / reflektierende Oberfläche"
+        ])
+
+        if "Samt" in prod_surface or "Seide" in prod_surface or "Leinen" in prod_surface:
+            fabric_drape = st.selectbox("Stoff-Form", [
+                "Flat / flach ausgelegt",
+                "Soft wave / sanfte Wölbung",
+                "Deep folds / tiefe Falten",
+                "Crumpled / leicht zerknittert (lässig)",
+                "Tightly wrapped around object"
+            ])
+        else:
+            fabric_drape = None
+
+        prod_props = st.text_input("Deko / Props (optional)",
+                                   placeholder="z.B. Eukalyptus-Zweige, Wassertropfen, Rosenblätter, Kerzen",
+                                   key="prod_only_props")
+
+    with po4:
+        st.markdown("**Licht & Atmosphäre**")
+        prod_lighting = st.selectbox("Beleuchtung", [
+            "Clean Studio Softbox (klassisch)",
+            "Dramatic Side Light",
+            "Backlit / Rim Light (Halo)",
+            "Golden Hour Warm Light",
+            "Cool Daylight (neutral)",
+            "Spotlight on black (Theater)",
+            "Neon Glow (bunt)",
+            "Window Light (natürlich, soft)"
+        ], key="prod_only_light")
+
+        prod_reflections = st.selectbox("Reflexionen", [
+            "— Standard —",
+            "Strong mirror reflections",
+            "Subtle soft reflections",
+            "Wet / glossy surface reflections",
+            "No reflections (matte look)"
+        ])
+        if prod_reflections == "— Standard —":
+            prod_reflections = ""
+
+        prod_shadow = st.selectbox("Schatten", [
+            "Soft diffused shadow",
+            "Hard dramatic shadow",
+            "No shadow (floating / clean)",
+            "Contact shadow only (minimal)",
+            "Long cinematic shadow"
+        ])
+
+        prod_color_mood = st.selectbox("Farbstimmung", [
+            "— Neutral —",
+            "Warm & luxurious (gold tones)",
+            "Cool & modern (blue/silver tones)",
+            "Earthy & natural (beige/green)",
+            "High contrast B&W",
+            "Pastel & soft",
+            "Dark & moody",
+            "Vibrant & colorful"
+        ])
+        if prod_color_mood == "— Neutral —":
+            prod_color_mood = ""
+
+    st.markdown("---")
+    po5, po6 = st.columns(2)
+
+    with po5:
+        st.markdown("**Hintergrund**")
+        prod_bg_type = st.selectbox("Hintergrund-Typ", [
+            "Seamless white (E-Commerce Standard)",
+            "Seamless black (Luxury)",
+            "Gradient (hell nach dunkel)",
+            "Gradient (dunkel nach hell)",
+            "Textured wall (Betonwand)",
+            "Blurred nature (Bokeh Grün)",
+            "Blurred city lights (Bokeh)",
+            "Solid color",
+            "Matching surface extends to background"
+        ], key="prod_only_bg")
+
+        if prod_bg_type == "Solid color":
+            prod_bg_color = st.color_picker("Hintergrund-Farbe", "#1a1a2e", key="prod_bg_col")
+            prod_bg_final = f"Solid {prod_bg_color} background"
+        elif prod_bg_type == "Matching surface extends to background":
+            prod_bg_final = f"Background seamlessly extends from the {prod_surface} surface, creating an infinite surface look"
+        else:
+            prod_bg_final = prod_bg_type
+
+    with po6:
+        st.markdown("**Format & Extras**")
+        prod_ar = st.selectbox("Bildformat", [
+            "Quadrat (1:1) — Instagram / Katalog",
+            "Hochformat (4:5) — Instagram Post",
+            "Hochformat (9:16) — Story / Reels",
+            "Querformat (16:9) — Website Banner",
+            "Querformat (3:2) — Klassisch"
+        ], key="prod_only_ar")
+
+        prod_lens = st.selectbox("Objektiv", [
+            "100mm Macro (extreme Detail)",
+            "85mm (classic product)",
+            "50mm (natural perspective)",
+            "35mm (context / lifestyle)"
+        ], key="prod_only_lens")
+
+        prod_dof = st.selectbox("Tiefenschärfe", [
+            "Everything sharp (f/8-f/11)",
+            "Soft background blur (f/2.8)",
+            "Extreme bokeh, only product sharp (f/1.4)",
+            "Tilt-shift miniature effect"
+        ], key="prod_only_dof")
+
+        prod_negative = st.text_input("🚫 Negativ-Prompt",
+                                      value="no people, no hands, no text, no watermark, no logo",
+                                      key="prod_only_neg")
+
+
 # --- PROMPT BUILD (LOCAL) ---
 def build_prompt_local():
     """Build prompt locally using Jinja2 template — no API needed."""
@@ -660,6 +876,83 @@ def build_video_prompt(image_prompt):
     return "\n".join(cleaned).strip()
 
 
+def build_product_only_prompt():
+    """Build a product-only prompt using the product template."""
+
+    # Aspect ratio
+    if "1:1" in prod_ar: par = "1:1 (Square)"
+    elif "4:5" in prod_ar: par = "4:5 (Portrait)"
+    elif "9:16" in prod_ar: par = "9:16 (Vertical)"
+    elif "16:9" in prod_ar: par = "16:9 (Landscape)"
+    elif "3:2" in prod_ar: par = "3:2 (Classic)"
+    else: par = "1:1 (Square)"
+
+    # Placement detail
+    placement_detail = ""
+    if "Floating" in prod_placement:
+        placement_detail = "The product floats weightlessly in center frame, perfectly lit from all sides, with a subtle shadow beneath to ground it."
+    elif "Draped" in prod_placement:
+        placement_detail = f"Product draped naturally over curved {prod_surface} fabric, following the soft folds organically."
+    elif "mirror" in prod_placement.lower():
+        placement_detail = "Product sits on a reflective mirror surface, creating a perfect reflection beneath."
+    elif fabric_drape:
+        placement_detail = f"The {prod_surface} surface is shaped: {fabric_drape}. Product follows the natural contour of the fabric."
+
+    # Surface as background detail
+    prod_bg_detail = ""
+    if prod_surface != "— Keiner (schwebend) —":
+        prod_bg_detail = f"SURFACE: {prod_surface}."
+
+    # Lighting detail
+    light_details = {
+        "Clean Studio Softbox (klassisch)": "Large softbox key light from above-right, fill light from left. Minimal shadows, even illumination.",
+        "Dramatic Side Light": "Single hard light source from 90° to one side. Deep contrast, moody feel.",
+        "Backlit / Rim Light (Halo)": "Strong backlight creating luminous edge around the product. Soft fill from front.",
+        "Golden Hour Warm Light": "Warm directional light simulating late afternoon sun. Rich golden tones.",
+        "Cool Daylight (neutral)": "Cool-toned neutral daylight. Clean, accurate color reproduction.",
+        "Spotlight on black (Theater)": "Tight spotlight beam on product against pure black. Dramatic theater effect.",
+        "Neon Glow (bunt)": "Colored neon light sources creating vivid reflections on the product surface.",
+        "Window Light (natürlich, soft)": "Soft directional window light from one side. Natural, editorial feel.",
+    }
+    prod_lighting_detail = light_details.get(prod_lighting, "")
+
+    prompt = PRODUCT_TEMPLATE.render(
+        prod_aspect_ratio=par,
+        prod_name=prod_name,
+        prod_description=prod_description if prod_description else "",
+        prod_material=prod_material,
+        prod_size_info=prod_size_text if prod_size_text else "",
+        prod_placement=prod_placement,
+        placement_detail=placement_detail,
+        prod_arrangement=prod_arrangement,
+        prod_angle=prod_angle,
+        prod_lens=prod_lens,
+        prod_dof=prod_dof,
+        prod_lighting=prod_lighting,
+        prod_lighting_detail=prod_lighting_detail,
+        prod_reflections=prod_reflections,
+        prod_bg=prod_bg_final,
+        prod_bg_detail=prod_bg_detail,
+        prod_props=prod_props if prod_props else "",
+        prod_color_mood=prod_color_mood,
+        prod_shadow=prod_shadow,
+        prod_negative=prod_negative if prod_negative else "",
+    )
+
+    # Clean blank lines
+    lines = prompt.split("\n")
+    cleaned = []
+    prev_empty = False
+    for line in lines:
+        is_empty = line.strip() == ""
+        if is_empty and prev_empty:
+            continue
+        cleaned.append(line)
+        prev_empty = is_empty
+
+    return "\n".join(cleaned).strip()
+
+
 def polish_with_gpt(raw_prompt, api_key):
     """Optional: refine the template prompt with GPT-4o."""
     from openai import OpenAI
@@ -753,3 +1046,39 @@ if st.button(btn_label):
                     file_name=f"nano_banana_veo3_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                     mime="text/plain"
                 )
+
+# --- PRODUCT ONLY BUTTON ---
+if use_product_only:
+    st.markdown("---")
+    if st.button("💎 PRODUCT ONLY PROMPT GENERIEREN"):
+        if not prod_name:
+            st.warning("Bitte Produktname eingeben!")
+        else:
+            with st.spinner("Baue Product-Only Prompt..."):
+                product_prompt = build_product_only_prompt()
+
+            st.success("✅ Product-Only Prompt generiert!")
+            st.markdown("### 💎 Product Only Prompt")
+            st.code(product_prompt, language="text")
+
+            # Optional GPT polish
+            if use_polish and api_key:
+                with st.spinner("GPT-4o verfeinert Product Prompt..."):
+                    polished_prod = polish_with_gpt(product_prompt, api_key)
+                if polished_prod:
+                    st.markdown("### ✨ GPT-4o Polished Product Version")
+                    st.code(polished_prod, language="text")
+
+            # Save to history
+            st.session_state.prompt_history.append({
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "prompt": product_prompt,
+                "type": "💎 Product",
+            })
+
+            st.download_button(
+                label="💾 Product-Prompt speichern (.txt)",
+                data=product_prompt,
+                file_name=f"nano_banana_product_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain"
+            )
