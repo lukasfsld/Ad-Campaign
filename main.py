@@ -1370,7 +1370,7 @@ def find_gemini_image_model(gemini_api_key, prefer_pro=False):
 def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, aspect_ratio_str=None, prefer_pro=False):
     """Generate an image using Gemini (auto-detects best model). Supports reference images and quality settings."""
 
-    # Detect if quality preference changed → reset cached model
+    # Detect if quality preference changed -> reset cached model
     quality_key = "pro" if prefer_pro else "flash"
     if st.session_state.get("gemini_quality_mode") != quality_key:
         st.session_state.gemini_model_name = None
@@ -1497,7 +1497,7 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
             pass
         if e.response.status_code == 404:
             st.session_state.gemini_model_name = None
-            st.error(f"Modell '{model}' nicht verfügbar. Bitte nochmal klicken – suche alternatives Modell.")
+            st.error(f"Modell '{model}' nicht verfügbar. Bitte nochmal klicken — suche alternatives Modell.")
         elif e.response.status_code == 503 or e.response.status_code == 429:
             # Model overloaded — try fallback
             fallback_models = [
@@ -1817,7 +1817,7 @@ if st.session_state.last_image_prompt:
     with gen1:
         if not gemini_key:
             st.warning("⚠️ Gemini API Key fehlt! Füge ihn in der Sidebar oder in Streamlit Secrets hinzu.")
-        
+
         if st.button("🚀 JETZT ERSTELLEN MIT GEMINI", disabled=not gemini_key):
             # Collect campaign reference images if any
             ref_imgs = campaign_ref_files if wear_product and campaign_ref_files else None
