@@ -5,6 +5,13 @@ PRODUCT: {{ prod_name }}.
 {% if prod_material %}MATERIAL: {{ prod_material }}. Show accurate material properties — reflections, texture, transparency, weight.{% endif %}
 {% if prod_size_info %}SCALE: {{ prod_size_info }}.{% endif %}
 
+{% if has_reference %}
+CRITICAL — REFERENCE IMAGE INSTRUCTIONS:
+{{ ref_count }} reference images are provided showing the EXACT product.
+Reference angles: {{ ref_angles }}.
+REPLICATE the product from the reference images with 100% accuracy. Match EVERY detail exactly: shape, proportions, color, texture, engravings, clasps, links, stones, and finish. Do NOT interpret, redesign, or improvise any element. The product in the final image must be IDENTICAL to the reference photos — as if it were the same physical object photographed in a new setting. Any deviation from the reference is a failure.
+{% endif %}
+
 PRESENTATION: {{ prod_placement }}.
 {% if placement_detail %}{{ placement_detail }}{% endif %}
 
