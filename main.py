@@ -1477,9 +1477,11 @@ def generate_video_veo(prompt_text, gemini_api_key):
             "instances": [{"prompt": prompt_text}],
             "parameters": {
                 "personGeneration": "allow_all",
-                "generateAudio": True,
             }
         }
+        # generateAudio only supported on veo-3.0
+        if "3.0" in model:
+            payload["parameters"]["generateAudio"] = True
 
         try:
             resp = requests.post(url, json=payload, headers=headers, timeout=60)
