@@ -1014,12 +1014,66 @@ Do NOT add or remove any specifications — only improve the prose and flow."""
         return None
 
 
-def generate_image_gemini(prompt_text, gemini_api_key):
-    """Generate an image using Gemini 2.5 Flash Image (Nano Banana)."""
-    import requests
-    import base64
+def find_gemini_image_model(gemini_api_key):
+    """Find the correct Gemini model that supports image generation."""
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={gemini_api_key}"
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        data = response.json()
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-image:generateContent?key={gemini_api_key}"
+        # Priority list of models that support image generation
+        preferred_models = [
+            "gemini-2.5-flash-preview-image",
+            "gemini-2.5-flash-image",
+            "gemini-2.0-flash-image",
+            "gemini-2.0-flash-exp",
+            "gemini-2.0-flash",
+        ]
+
+        available = []
+        for model in data.get("models", []):
+            name = model.get("name", "").replace("models/", "")
+            methods = model.get("supportedGenerationMethods", [])
+            if "generateContent" in methods:
+                available.append(name)
+
+        # Try preferred models first
+        for pref in preferred_models:
+            for avail in available:
+                if pref in avail:
+                    return avail
+
+        # Fallback: any model with "image" or "flash" in name
+        for avail in available:
+            if "image" in avail.lower():
+                return avail
+
+        for avail in available:
+            if "flash" in avail.lower() and "lite" not in avail.lower():
+                return avail
+
+        return None
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Modell-Liste: {e}")
+        return None
+
+
+def generate_image_gemini(prompt_text, gemini_api_key):
+    """Generate an image using Gemini (auto-detects best model)."""
+
+    # Find correct model
+    if "gemini_model_name" not in st.session_state or not st.session_state.gemini_model_name:
+        with st.spinner("Suche bestes Gemini-Modell..."):
+            model_name = find_gemini_image_model(gemini_api_key)
+            if not model_name:
+                st.error("❌ Kein Gemini-Modell mit Bildgenerierung gefunden. Prüfe deinen API Key.")
+                return None, None
+            st.session_state.gemini_model_name = model_name
+            st.info(f"🤖 Verwende Modell: **{model_name}**")
+
+    model = st.session_state.gemini_model_name
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_api_key}"
 
     payload = {
         "contents": [{
@@ -1072,7 +1126,12 @@ def generate_image_gemini(prompt_text, gemini_api_key):
             error_detail = e.response.json().get("error", {}).get("message", "")
         except:
             pass
-        st.error(f"Gemini API Fehler: {e}\n{error_detail}")
+        # If model not found, reset cache and try again
+        if e.response.status_code == 404:
+            st.session_state.gemini_model_name = None
+            st.error(f"Modell '{model}' nicht verfügbar. Bitte nochmal klicken – suche alternatives Modell.")
+        else:
+            st.error(f"Gemini API Fehler: {e}\n{error_detail}")
         return None, None
     except Exception as e:
         st.error(f"Fehler bei der Bildgenerierung: {e}")
