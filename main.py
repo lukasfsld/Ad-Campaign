@@ -1015,20 +1015,20 @@ Do NOT add or remove any specifications — only improve the prose and flow."""
 
 
 def generate_image_gemini(prompt_text, gemini_api_key):
-    """Generate an image using the Gemini API (Imagen via Gemini)."""
+    """Generate an image using Gemini 2.5 Flash Image (Nano Banana)."""
     import requests
     import base64
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={gemini_api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-image:generateContent?key={gemini_api_key}"
 
     payload = {
         "contents": [{
             "parts": [{
-                "text": f"Generate an image based on this description. Create ONLY an image, no text response.\n\n{prompt_text}"
+                "text": prompt_text
             }]
         }],
         "generationConfig": {
-            "responseModalities": ["TEXT", "IMAGE"]
+            "responseModalities": ["IMAGE", "TEXT"],
         }
     }
 
@@ -1051,7 +1051,16 @@ def generate_image_gemini(prompt_text, gemini_api_key):
                     img_bytes = base64.b64decode(img_data)
                     return img_bytes, mime_type
 
-        st.error("Gemini hat kein Bild zurückgegeben. Versuche den Prompt anzupassen.")
+        # Check for blocked content
+        block_reason = ""
+        for candidate in candidates:
+            if "finishReason" in candidate:
+                block_reason = candidate["finishReason"]
+
+        if block_reason:
+            st.error(f"Gemini hat kein Bild generiert. Grund: {block_reason}. Versuche den Prompt anzupassen.")
+        else:
+            st.error("Gemini hat kein Bild zurückgegeben. Versuche den Prompt anzupassen.")
         return None, None
 
     except requests.exceptions.Timeout:
