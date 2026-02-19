@@ -1061,10 +1061,11 @@ def find_gemini_image_model(gemini_api_key):
         response.raise_for_status()
         data = response.json()
 
-        # Priority list of models that support image generation
+        # Priority list — best quality first
         preferred_models = [
-            "gemini-2.5-flash-preview-image",
+            "gemini-3-pro-image-preview",
             "gemini-2.5-flash-image",
+            "gemini-2.5-flash-preview-image",
             "gemini-2.0-flash-image",
             "gemini-2.0-flash-exp",
             "gemini-2.0-flash",
@@ -1083,7 +1084,7 @@ def find_gemini_image_model(gemini_api_key):
                 if pref in avail:
                     return avail
 
-        # Fallback: any model with "image" or "flash" in name
+        # Fallback: any model with "image" in name
         for avail in available:
             if "image" in avail.lower():
                 return avail
@@ -1098,8 +1099,8 @@ def find_gemini_image_model(gemini_api_key):
         return None
 
 
-def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None):
-    """Generate an image using Gemini (auto-detects best model). Supports reference images."""
+def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, aspect_ratio_str=None):
+    """Generate an image using Gemini (auto-detects best model). Supports reference images and quality settings."""
 
     # Find correct model
     if "gemini_model_name" not in st.session_state or not st.session_state.gemini_model_name:
@@ -1114,15 +1115,24 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None):
     model = st.session_state.gemini_model_name
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_api_key}"
 
+    # Add sharpness boost to prompt
+    quality_boost = (
+        "\n\nIMPORTANT QUALITY INSTRUCTIONS: Generate at MAXIMUM available resolution. "
+        "The image must be tack-sharp with extreme detail when zoomed in. "
+        "Razor-sharp focus, no blur, no softness, no compression artifacts. "
+        "Every texture, pore, fabric thread, and material grain must be crisply rendered. "
+        "Professional retouching quality with pixel-perfect sharpness throughout the entire frame."
+    )
+    enhanced_prompt = prompt_text + quality_boost
+
     # Build parts: text prompt + reference images
-    parts = [{"text": prompt_text}]
+    parts = [{"text": enhanced_prompt}]
 
     if reference_images:
         for ref_img in reference_images:
             img_bytes = ref_img.getvalue()
             img_b64 = base64.b64encode(img_bytes).decode("utf-8")
 
-            # Detect mime type
             fname = ref_img.name.lower()
             if fname.endswith(".png"):
                 mime = "image/png"
@@ -1138,13 +1148,29 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None):
                 }
             })
 
+    # Build generation config — IMAGE only mode for better quality
+    gen_config = {
+        "responseModalities": ["IMAGE"],
+    }
+
+    # Map aspect ratio
+    ar_map = {
+        "16:9": "16:9",
+        "9:16": "9:16",
+        "1:1": "1:1",
+        "21:9": "16:9",  # Fallback, 21:9 not always supported
+        "4:5": "3:4",    # Closest match
+        "3:2": "4:3",    # Closest match
+    }
+    if aspect_ratio_str:
+        for key, val in ar_map.items():
+            if key in aspect_ratio_str:
+                gen_config["imageConfig"] = {"aspectRatio": val}
+                break
+
     payload = {
-        "contents": [{
-            "parts": parts
-        }],
-        "generationConfig": {
-            "responseModalities": ["IMAGE", "TEXT"],
-        }
+        "contents": [{"parts": parts}],
+        "generationConfig": gen_config,
     }
 
     headers = {"Content-Type": "application/json"}
@@ -1297,7 +1323,8 @@ if st.session_state.last_image_prompt:
             for i in range(num_images):
                 with st.spinner(f"Gemini generiert Bild {i+1}/{num_images}... (kann 30-60 Sek. dauern)"):
                     img_bytes, mime_type = generate_image_gemini(
-                        st.session_state.last_image_prompt, gemini_key, reference_images=ref_imgs
+                        st.session_state.last_image_prompt, gemini_key,
+                        reference_images=ref_imgs, aspect_ratio_str=aspect_ratio
                     )
                 if img_bytes:
                     st.session_state.generated_images.append({
@@ -1388,7 +1415,8 @@ if use_product_only:
                 for i in range(num_prod_images):
                     with st.spinner(f"Gemini generiert Product-Bild {i+1}/{num_prod_images}..."):
                         img_bytes, mime_type = generate_image_gemini(
-                            st.session_state.last_product_prompt, gemini_key, reference_images=prod_refs
+                            st.session_state.last_product_prompt, gemini_key,
+                            reference_images=prod_refs, aspect_ratio_str=prod_ar
                         )
                     if img_bytes:
                         st.session_state.generated_images.append({
