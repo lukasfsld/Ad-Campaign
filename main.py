@@ -268,6 +268,17 @@ with st.sidebar:
         if not gemini_key:
             st.caption("Optional: Für direkte Bild-Generierung.")
 
+    # Model quality selector
+    st.markdown("**🎯 Bild-Modell Qualität**")
+    model_quality = st.radio(
+        "Modell wählen",
+        ["⚡ Flash (schnell & günstig)", "💎 Pro (beste Qualität)"],
+        index=0,
+        help="Flash: ~$0.04/Bild, schnell. Pro: ~$0.14-0.24/Bild, 2K/4K, bessere Gesichter & Details."
+    )
+    if "💎 Pro" in model_quality:
+        st.caption("⚠️ Pro kostet ca. 4-6x mehr pro Bild, liefert aber deutlich realistischere Ergebnisse.")
+
     st.markdown("---")
 
     # Optional OpenAI API Key (only for polish mode)
@@ -1247,7 +1258,7 @@ Do NOT add or remove any specifications — only improve the prose and flow."""
         return None
 
 
-def find_gemini_image_model(gemini_api_key):
+def find_gemini_image_model(gemini_api_key, prefer_pro=False):
     """Find the correct Gemini model that supports image generation."""
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models?key={gemini_api_key}"
@@ -1255,15 +1266,21 @@ def find_gemini_image_model(gemini_api_key):
         response.raise_for_status()
         data = response.json()
 
-        # Priority list — best quality first
-        preferred_models = [
-            "gemini-3-pro-image-preview",
-            "gemini-2.5-flash-image",
-            "gemini-2.5-flash-preview-image",
-            "gemini-2.0-flash-image",
-            "gemini-2.0-flash-exp",
-            "gemini-2.0-flash",
-        ]
+        # Different priority based on quality preference
+        if prefer_pro:
+            preferred_models = [
+                "gemini-3-pro-image-preview",
+                "gemini-2.5-flash-image",
+                "gemini-2.5-flash-preview-image",
+            ]
+        else:
+            preferred_models = [
+                "gemini-2.5-flash-image",
+                "gemini-2.5-flash-preview-image",
+                "gemini-3-pro-image-preview",
+                "gemini-2.0-flash-image",
+                "gemini-2.0-flash",
+            ]
 
         available = []
         for model in data.get("models", []):
@@ -1293,13 +1310,19 @@ def find_gemini_image_model(gemini_api_key):
         return None
 
 
-def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, aspect_ratio_str=None):
+def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, aspect_ratio_str=None, prefer_pro=False):
     """Generate an image using Gemini (auto-detects best model). Supports reference images and quality settings."""
+
+    # Detect if quality preference changed → reset cached model
+    quality_key = "pro" if prefer_pro else "flash"
+    if st.session_state.get("gemini_quality_mode") != quality_key:
+        st.session_state.gemini_model_name = None
+        st.session_state.gemini_quality_mode = quality_key
 
     # Find correct model
     if "gemini_model_name" not in st.session_state or not st.session_state.gemini_model_name:
         with st.spinner("Suche bestes Gemini-Modell..."):
-            model_name = find_gemini_image_model(gemini_api_key)
+            model_name = find_gemini_image_model(gemini_api_key, prefer_pro=prefer_pro)
             if not model_name:
                 st.error("❌ Kein Gemini-Modell mit Bildgenerierung gefunden. Prüfe deinen API Key.")
                 return None, None
@@ -1356,11 +1379,19 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
         "4:5": "3:4",    # Closest match
         "3:2": "4:3",    # Closest match
     }
+    image_config = {}
     if aspect_ratio_str:
         for key, val in ar_map.items():
             if key in aspect_ratio_str:
-                gen_config["imageConfig"] = {"aspectRatio": val}
+                image_config["aspectRatio"] = val
                 break
+
+    # Pro model supports higher resolution
+    if prefer_pro and "3-pro" in model:
+        image_config["imageSize"] = "2K"
+
+    if image_config:
+        gen_config["imageConfig"] = image_config
 
     payload = {
         "contents": [{"parts": parts}],
@@ -1739,7 +1770,8 @@ if st.session_state.last_image_prompt:
                 with st.spinner(f"Gemini generiert Bild {i+1}/{num_images}... (kann 30-60 Sek. dauern)"):
                     img_bytes, mime_type = generate_image_gemini(
                         st.session_state.last_image_prompt, gemini_key,
-                        reference_images=ref_imgs, aspect_ratio_str=aspect_ratio
+                        reference_images=ref_imgs, aspect_ratio_str=aspect_ratio,
+                        prefer_pro=("💎 Pro" in model_quality)
                     )
                 if img_bytes:
                     st.session_state.generated_images.append({
@@ -1869,7 +1901,8 @@ if use_product_only:
                     with st.spinner(f"Gemini generiert Product-Bild {i+1}/{num_prod_images}..."):
                         img_bytes, mime_type = generate_image_gemini(
                             st.session_state.last_product_prompt, gemini_key,
-                            reference_images=prod_refs, aspect_ratio_str=prod_ar
+                            reference_images=prod_refs, aspect_ratio_str=prod_ar,
+                            prefer_pro=("💎 Pro" in model_quality)
                         )
                     if img_bytes:
                         st.session_state.generated_images.append({
