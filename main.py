@@ -1462,8 +1462,10 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
         "\n\nQUALITY INSTRUCTIONS: Generate at maximum available resolution. "
         "Sharp focus, no blur, no compression artifacts. "
         "Professional retouching quality with pixel-perfect sharpness. "
-        "CRITICAL: Maintain all specified product sizes and proportions exactly as described in the prompt. "
-        "Do NOT enlarge or exaggerate any objects. Keep the composition and scale faithful to the instructions above."
+        "CRITICAL PRODUCT SCALE RULE: All jewelry, necklaces, pendants, and accessories MUST be rendered at their "
+        "true real-world physical size relative to the human body. A typical necklace pendant is only 1-2cm. "
+        "Do NOT make the product larger, bolder, or more visually prominent than it would appear in a real photograph. "
+        "The product should be small, delicate, and naturally proportioned — exactly as a real person would wear it."
     )
     enhanced_prompt = prompt_text + quality_boost
 
