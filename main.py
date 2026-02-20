@@ -1286,16 +1286,28 @@ def build_ad_creative_prompt():
     }
     comp_instr = comp_map.get(ad_composition, "")
 
-    # Text overlay instructions
+    # Text overlay instructions with letter-by-letter spelling help
     text_elements = []
+
+    def spell_out(text):
+        """Create letter-by-letter spelling to help Gemini render text correctly."""
+        return " — ".join(list(text))
+
     if ad_headline:
-        text_elements.append(f'HEADLINE TEXT ON IMAGE: "{ad_headline}"')
+        text_elements.append(f'HEADLINE TEXT ON IMAGE: "{ad_headline}" (spelled: {spell_out(ad_headline)})')
     if ad_subline:
-        text_elements.append(f'SUBLINE TEXT: "{ad_subline}"')
+        text_elements.append(f'SUBLINE TEXT: "{ad_subline}" (spelled: {spell_out(ad_subline)})')
     if ad_cta:
-        text_elements.append(f'CTA BUTTON/TEXT: "{ad_cta}"')
+        text_elements.append(f'CTA BUTTON/TEXT: "{ad_cta}" (spelled: {spell_out(ad_cta)})')
     if ad_offer:
-        text_elements.append(f'OFFER BADGE: "{ad_offer}"')
+        text_elements.append(f'OFFER BADGE: "{ad_offer}" (spelled: {spell_out(ad_offer)})')
+
+    if text_elements:
+        text_elements.append(
+            'CRITICAL TEXT RENDERING RULE: Reproduce EVERY text element EXACTLY letter-by-letter as specified above. '
+            'Do NOT rearrange, abbreviate, or rephrase any text. Do NOT add extra letters or skip any letters. '
+            'Count the letters in each word and verify they match before rendering.'
+        )
 
     # Personalization hint
     personalization_instr = ""
@@ -1849,8 +1861,9 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
                 break
 
     # Pro model supports higher resolution
-    if prefer_pro and "3-pro" in model:
-        image_config["imageSize"] = "2K"
+    if prefer_pro and "pro" in model.lower():
+        # Note: not all pro models support imageSize — try it but handle gracefully
+        image_config["outputImageSize"] = "2048x2048"
 
     if image_config:
         gen_config["imageConfig"] = image_config
@@ -1862,8 +1875,11 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
 
     headers = {"Content-Type": "application/json"}
 
+    # Pro model needs longer timeout (2K generation can take 3-5 min)
+    request_timeout = 300 if prefer_pro else 180
+
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=180)
+        response = requests.post(url, json=payload, headers=headers, timeout=request_timeout)
         response.raise_for_status()
         data = response.json()
 
@@ -1892,6 +1908,31 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
         return None, None
 
     except requests.exceptions.Timeout:
+        # If Pro timed out, try again without high-res config
+        if prefer_pro:
+            st.warning("⏰ Pro-Modell Timeout bei hoher Auflösung — versuche Standard-Auflösung...")
+            if "outputImageSize" in gen_config.get("imageConfig", {}):
+                del gen_config["imageConfig"]["outputImageSize"]
+            if "imageSize" in gen_config.get("imageConfig", {}):
+                del gen_config["imageConfig"]["imageSize"]
+            retry_payload = {
+                "contents": [{"parts": parts}],
+                "generationConfig": gen_config,
+            }
+            try:
+                retry_resp = requests.post(url, json=retry_payload, headers=headers, timeout=180)
+                retry_resp.raise_for_status()
+                retry_data = retry_resp.json()
+                for candidate in retry_data.get("candidates", []):
+                    content = candidate.get("content", {})
+                    for part in content.get("parts", []):
+                        if "inlineData" in part:
+                            img_data = part["inlineData"]["data"]
+                            mime_type = part["inlineData"].get("mimeType", "image/png")
+                            st.success("✅ Pro-Bild generiert (Standard-Auflösung)")
+                            return base64.b64decode(img_data), mime_type
+            except:
+                pass
         st.error("⏰ Timeout — Gemini braucht zu lange. Bitte nochmal versuchen.")
         return None, None
     except requests.exceptions.HTTPError as e:
@@ -1900,6 +1941,33 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
             error_detail = e.response.json().get("error", {}).get("message", "")
         except:
             pass
+
+        # If Pro fails with 400 (bad config), retry without imageSize
+        if e.response.status_code == 400 and prefer_pro:
+            st.warning("⚠️ Pro-Modell unterstützt diese Konfiguration nicht — versuche ohne Größen-Einstellung...")
+            if "imageConfig" in gen_config:
+                gen_config["imageConfig"] = {k: v for k, v in gen_config["imageConfig"].items()
+                                             if k not in ("imageSize", "outputImageSize")}
+            retry_payload = {
+                "contents": [{"parts": parts}],
+                "generationConfig": gen_config,
+            }
+            try:
+                retry_resp = requests.post(url, json=retry_payload, headers=headers, timeout=240)
+                retry_resp.raise_for_status()
+                retry_data = retry_resp.json()
+                for candidate in retry_data.get("candidates", []):
+                    content = candidate.get("content", {})
+                    for part in content.get("parts", []):
+                        if "inlineData" in part:
+                            img_data = part["inlineData"]["data"]
+                            mime_type = part["inlineData"].get("mimeType", "image/png")
+                            st.success("✅ Pro-Bild generiert (ohne Größen-Override)")
+                            return base64.b64decode(img_data), mime_type
+            except Exception as retry_e:
+                st.error(f"Auch Retry fehlgeschlagen: {retry_e}")
+                return None, None
+
         if e.response.status_code == 404:
             st.session_state.gemini_model_name = None
             st.error(f"Modell '{model}' nicht verfügbar. Bitte nochmal klicken — suche alternatives Modell.")
@@ -2229,7 +2297,8 @@ if st.session_state.last_image_prompt:
             if ref_imgs:
                 st.info(f"📸 {len(ref_imgs)} Referenzbild(er) werden mitgesendet...")
             for i in range(num_images):
-                with st.spinner(f"Gemini generiert Bild {i+1}/{num_images}... (kann 30-60 Sek. dauern)"):
+                pro_hint = " ⚠️ Pro-Modell: kann 2-4 Min. dauern!" if "💎 Pro" in model_quality else ""
+                with st.spinner(f"Gemini generiert Bild {i+1}/{num_images}...{pro_hint}"):
                     img_bytes, mime_type = generate_image_gemini(
                         st.session_state.last_image_prompt, gemini_key,
                         reference_images=ref_imgs, aspect_ratio_str=aspect_ratio,
