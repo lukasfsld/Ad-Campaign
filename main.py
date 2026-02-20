@@ -1159,6 +1159,15 @@ if use_ad_creative:
             "Kräftige Farben (Pop Art Style)",
         ])
 
+        ad_font = st.selectbox("Schriftart für Text-Overlay", [
+            "Elegant Serif (Playfair Display / Didot)",
+            "Modern Sans-Serif (Montserrat / Helvetica)",
+            "Luxury Thin (Futura Light / Gill Sans)",
+            "Handwritten / Script (Parisienne / Great Vibes)",
+            "Bold Impact (Bebas Neue / Oswald)",
+            "Minimalist (Inter / DM Sans)",
+        ], help="Beeinflusst wie der Text auf dem Bild gerendert wird.")
+
         ad_ref_files = st.file_uploader(
             "Produkt-Referenzbilder für Ad (max. 4)",
             type=["png", "jpg", "jpeg", "webp"],
@@ -1320,6 +1329,17 @@ def build_ad_creative_prompt():
     }
     price_instr = price_map.get(ad_price_point, "")
 
+    # Font style
+    font_map = {
+        "Elegant Serif (Playfair Display / Didot)": "elegant, high-contrast serif (like Playfair Display or Didot) — luxurious, editorial, classic",
+        "Modern Sans-Serif (Montserrat / Helvetica)": "clean, geometric sans-serif (like Montserrat or Helvetica) — modern, professional, versatile",
+        "Luxury Thin (Futura Light / Gill Sans)": "ultra-thin, refined sans-serif (like Futura Light or Gill Sans Light) — minimal, high-end, whisper-quiet elegance",
+        "Handwritten / Script (Parisienne / Great Vibes)": "flowing script / handwritten (like Parisienne or Great Vibes) — personal, romantic, intimate",
+        "Bold Impact (Bebas Neue / Oswald)": "bold, condensed display (like Bebas Neue or Oswald) — attention-grabbing, strong, urgent",
+        "Minimalist (Inter / DM Sans)": "clean minimalist sans-serif (like Inter or DM Sans) — understated, modern, tech-forward",
+    }
+    font_instr = font_map.get(ad_font, "clean, modern sans-serif")
+
     # Build the full prompt
     prompt = f"""FACEBOOK / INSTAGRAM AD CREATIVE — {ad_ar}
 
@@ -1344,7 +1364,7 @@ SKIN: Realistic skin with natural texture, visible pores, subtle imperfections. 
 
 {"TEXT ELEMENTS TO INCLUDE IN THE IMAGE:" if text_elements else ""}
 {chr(10).join(text_elements)}
-{"Render the text clearly and legibly using a clean, modern sans-serif font. Text must be HIGH CONTRAST against the background and easily readable at small sizes (mobile phone viewing)." if text_elements else ""}
+{f"TYPOGRAPHY: Use a {font_instr} font style. Text must be HIGH CONTRAST against the background, easily readable at small sizes (mobile phone viewing). Kerning and spacing should be professional. If headline and subline are present, use clear size hierarchy." if text_elements else ""}
 
 AD CREATIVE REQUIREMENTS:
 - The image must work as a standalone ad — it should communicate the product and value proposition visually
@@ -1400,8 +1420,15 @@ def build_prompt_local():
     # Product instruction
     ref_reminder = ""
     if wear_product:
+        size_ref = ""
+        if use_size and obj_size:
+            size_ref = (f" The product is exactly {obj_size}cm in real life. "
+                        f"Render it at this EXACT real-world size relative to the human body — "
+                        f"do NOT enlarge or shrink it. A {obj_size}cm pendant is SMALL and delicate on a human neck.")
         prod_instr = (f"The model wears/holds '{product}'. Use the provided REFERENCE IMAGE "
-                      f"for exact product appearance. Blend naturally into the scene.")
+                      f"for exact product appearance — match the design, shape, color, texture, and proportions "
+                      f"from the reference as closely as possible.{size_ref} "
+                      f"Blend naturally into the scene.")
         ref_reminder = "⚠️ WICHTIG: Lade dein Referenzbild zusammen mit diesem Prompt hoch!"
     else:
         prod_instr = f"Campaign product: '{product}'. Integrate naturally into the composition."
