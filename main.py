@@ -1600,6 +1600,11 @@ def build_ad_creative_prompt():
 PURPOSE: This is a paid advertising creative for Facebook/Instagram. It must STOP THE SCROLL — grab attention within 0.5 seconds in a fast-moving feed.
 
 PRODUCT: '{product}'
+PRODUCT IDENTITY — ABSOLUTE RULE: If a reference image is provided, reproduce the product 1:1 IDENTICALLY.
+Do NOT alter, redesign, reinterpret, simplify, or 'improve' the product in ANY way.
+Do NOT change the shape, color, material, texture, chain style, pendant design, number of stones, metal color, size, or ANY other design element.
+The product must look EXACTLY like the reference — as if the same physical item was photographed again.
+This is a REAL product being advertised — customers will see the actual item. Any deviation is FALSE ADVERTISING.
 {target_instr}
 
 {style_instr}
@@ -1719,10 +1724,13 @@ def build_carousel_prompts():
 This is SLIDE {i+1} of {ad_carousel_count} in a Facebook/Instagram Carousel Ad.
 {slide_instr}
 
-PRODUCT IDENTITY — CRITICAL: The jewelry product in ALL slides must be the EXACT SAME piece.
-It must have the IDENTICAL design, shape, color, material, size, chain style, pendant shape, and every visual detail.
-If a reference image was provided, MATCH IT EXACTLY on every slide — do not invent a different product.
-Do NOT change the product design between slides. Every slide shows the SAME necklace/ring/bracelet.
+PRODUCT IDENTITY — ABSOLUTE RULE: The jewelry product in ALL slides must be the EXACT SAME piece.
+Reproduce the product 1:1 IDENTICALLY from the reference image on EVERY slide.
+Do NOT alter, redesign, reinterpret, simplify, or 'improve' the product in ANY way on ANY slide.
+Do NOT change: the shape, the color, the material, the texture, the chain style, the pendant design,
+the number of stones, the metal color, the size, the proportions, or ANY other design element.
+The product must be INDISTINGUISHABLE from the reference photo on every single slide.
+This is a REAL product — customers will compare the ad to what they receive. Any deviation = false advertising.
 
 CAROUSEL CONSISTENCY: All slides must share the same overall color palette, lighting mood, and brand feel.
 The visual style must be CONSISTENT across all slides so they look like they belong together as a set.
@@ -1771,8 +1779,13 @@ def build_prompt_local():
                         f"Render it at this EXACT real-world size relative to the human body — "
                         f"do NOT enlarge or shrink it. A {obj_size}cm pendant is SMALL and delicate on a human neck.")
         prod_instr = (f"The model wears/holds '{product}'. Use the provided REFERENCE IMAGE "
-                      f"for exact product appearance — match the design, shape, color, texture, and proportions "
-                      f"from the reference as closely as possible.{size_ref} "
+                      f"for EXACT product appearance — reproduce the product 1:1 IDENTICALLY. "
+                      f"Match EVERY detail from the reference: exact shape, exact color, exact material, "
+                      f"exact texture, exact chain style, exact pendant design, exact proportions. "
+                      f"Do NOT alter, redesign, reinterpret, simplify, or 'improve' the product in ANY way. "
+                      f"Do NOT change the number of stones, the shape of the pendant, the type of chain, "
+                      f"the color of the metal, or ANY other design element. "
+                      f"The product in the generated image must be INDISTINGUISHABLE from the reference photo.{size_ref} "
                       f"Blend naturally into the scene.")
         ref_reminder = "⚠️ WICHTIG: Lade dein Referenzbild zusammen mit diesem Prompt hoch!"
     else:
@@ -2133,6 +2146,10 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
             "in a real photograph. The product should be naturally proportioned — if you have to squint "
             "to see it in real life, it should be similarly subtle in the image. "
             "NEVER enlarge a product to make it more visible. Realism of scale is MORE important than product visibility."
+            "\n\nPRODUCT FIDELITY — ABSOLUTE RULE: If a reference image is provided, the product in the "
+            "generated image must be a 1:1 EXACT copy. Do NOT alter, redesign, reinterpret, add to, "
+            "remove from, simplify, or change the product in ANY way. Same shape, same color, same material, "
+            "same stones, same chain, same everything. ZERO deviations allowed."
             "\n\nTEXT SPELLING RULE: If ANY text appears in the image, it MUST be spelled 100% correctly. "
             "Check every letter carefully. No typos, no missing letters, no swapped letters. "
             "German text must use correct German spelling (e.g. 'Versand' not 'Vershand', "
@@ -2146,6 +2163,10 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
             "Razor-sharp focus, no blur, no softness, no compression artifacts. "
             "Every texture, pore, fabric thread, and material grain must be crisply rendered. "
             "Professional retouching quality with pixel-perfect sharpness throughout the entire frame."
+            "\n\nPRODUCT FIDELITY — ABSOLUTE RULE: If a reference image is provided, the product in the "
+            "generated image must be a 1:1 EXACT copy. Do NOT alter, redesign, reinterpret, add to, "
+            "remove from, simplify, or change the product in ANY way. Same shape, same color, same material, "
+            "same stones, same chain, same everything. ZERO deviations allowed."
             "\n\nTEXT SPELLING RULE: If ANY text appears in the image, it MUST be spelled 100% correctly. "
             "Check every letter carefully. No typos, no missing letters, no swapped letters. "
             "German text must use correct German spelling (e.g. 'Versand' not 'Vershand', "
