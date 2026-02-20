@@ -1069,6 +1069,19 @@ if use_ad_creative:
         is_personalizable = st.checkbox("🏷️ Produkt ist personalisierbar", value=True,
                                         help="Wenn aktiviert, wird 'Personalisierbar' als Selling Point eingebaut.")
 
+        st.markdown("**📐 Anhänger-/Produkt-Maße**")
+        ad_use_dimensions = st.checkbox("Maße angeben", value=False, key="ad_use_dims",
+                                        help="Exakte Maße damit die Kette/der Anhänger nicht vergrößert dargestellt wird.")
+        if ad_use_dimensions:
+            ad_dim1, ad_dim2 = st.columns(2)
+            with ad_dim1:
+                ad_pendant_width = st.number_input("Breite (mm)", min_value=1.0, max_value=100.0, value=15.0, step=0.5, key="ad_pw")
+            with ad_dim2:
+                ad_pendant_height = st.number_input("Höhe (mm)", min_value=1.0, max_value=100.0, value=20.0, step=0.5, key="ad_ph")
+            ad_chain_length = st.number_input("Kettenlänge (cm, optional)", min_value=0.0, max_value=100.0, value=45.0, step=1.0, key="ad_cl")
+        else:
+            ad_pendant_width, ad_pendant_height, ad_chain_length = None, None, None
+
     with ad2:
         st.markdown("**👥 Zielgruppe**")
         ad_target = st.selectbox("Primäre Zielgruppe", [
@@ -1294,6 +1307,18 @@ def build_ad_creative_prompt():
             "Make it clear visually that this piece can be customized to the buyer's preference."
         )
 
+    # Product dimensions
+    dimensions_instr = ""
+    if ad_use_dimensions and ad_pendant_width and ad_pendant_height:
+        dimensions_instr = (
+            f"\nPRODUCT DIMENSIONS — CRITICAL: The pendant/charm is exactly {ad_pendant_width}mm wide × {ad_pendant_height}mm tall. "
+            f"This is VERY SMALL — roughly the size of a fingernail or small coin. "
+            f"Render the pendant at its TRUE real-world size on the model's body. Do NOT enlarge, exaggerate, or make it more prominent. "
+            f"On a human neck, a {ad_pendant_width}mm × {ad_pendant_height}mm pendant appears delicate and subtle."
+        )
+        if ad_chain_length and ad_chain_length > 0:
+            dimensions_instr += f" The chain is {ad_chain_length}cm long, sitting {'at the collarbone' if ad_chain_length <= 40 else 'below the collarbone' if ad_chain_length <= 50 else 'at mid-chest level'}."
+
     # Season/occasion
     season_instr = ""
     if ad_season and "Kein" not in ad_season:
@@ -1358,6 +1383,7 @@ PRODUCT: '{product}'
 {color_instr}
 {price_instr}
 {personalization_instr}
+{dimensions_instr}
 {season_instr}
 
 SKIN: Realistic skin with natural texture, visible pores, subtle imperfections. NO airbrushed, plastic, or CGI-looking skin.
@@ -1365,6 +1391,7 @@ SKIN: Realistic skin with natural texture, visible pores, subtle imperfections. 
 {"TEXT ELEMENTS TO INCLUDE IN THE IMAGE:" if text_elements else ""}
 {chr(10).join(text_elements)}
 {f"TYPOGRAPHY: Use a {font_instr} font style. Text must be HIGH CONTRAST against the background, easily readable at small sizes (mobile phone viewing). Kerning and spacing should be professional. If headline and subline are present, use clear size hierarchy." if text_elements else ""}
+{"SPELLING — CRITICAL: All text rendered on the image MUST be spelled correctly. Double-check every word before rendering. Common German words that MUST be correct: 'Versand' (NOT Vershand), 'Geschenk' (NOT Geschnek), 'personalisierbar' (NOT personalisirbar), 'Halskette' (NOT Halskete), 'Anhänger' (NOT Anhenger), 'kostenlos' (NOT kostelos), 'einzigartig' (NOT einzigarig), 'handgefertigt' (NOT handgefertgt). If any text is in German, ensure PERFECT German spelling and grammar." if text_elements else ""}
 
 AD CREATIVE REQUIREMENTS:
 - The image must work as a standalone ad — it should communicate the product and value proposition visually
@@ -1769,6 +1796,11 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
         "Razor-sharp focus, no blur, no softness, no compression artifacts. "
         "Every texture, pore, fabric thread, and material grain must be crisply rendered. "
         "Professional retouching quality with pixel-perfect sharpness throughout the entire frame."
+        "\n\nTEXT SPELLING RULE: If ANY text appears in the image, it MUST be spelled 100% correctly. "
+        "Check every letter carefully. No typos, no missing letters, no swapped letters. "
+        "German text must use correct German spelling (e.g. 'Versand' not 'Vershand', "
+        "'Geschenk' not 'Geschnek', 'kostenlos' not 'kostelos'). "
+        "If unsure about a word, use simpler/shorter text instead."
     )
     enhanced_prompt = prompt_text + quality_boost
 
