@@ -1046,6 +1046,8 @@ if use_ad_creative:
             "💎 Product Hero / Close-Up",
             "🎁 Geschenk-Guide",
             "📖 Educational / Craftsmanship",
+            "📱 UGC-Style (User Generated Content)",
+            "🌿 Everyday Jewelry / Casual Wear",
         ], help="Der Werbe-Typ bestimmt Bildstil, Textton und Komposition.")
 
         ad_mood = st.selectbox("Stimmung / Mood", [
@@ -1261,6 +1263,61 @@ if use_ad_creative:
         ], default=["🪞 Self-Image (so sieht das an DIR aus)", "❤️ Emotional Anchoring (Liebe, Erinnerung, Meilenstein)"],
            help="Psychologische Prinzipien die nachweislich Conversion steigern.")
 
+    # --- 3-2-2 METHOD & CREATIVE DIVERSITY ---
+    st.markdown("---")
+    ad7, ad8 = st.columns(2)
+
+    with ad7:
+        st.markdown("**🔬 3-2-2 A/B-Test Methode**")
+        use_322 = st.checkbox("3-2-2 Methode aktivieren", value=False,
+                              help="Generiert automatisch 3 Bild-Varianten, 2 Headline-Varianten und 2 Primary-Text Varianten für systematisches A/B-Testing.")
+        if use_322:
+            st.info(
+                "**So funktioniert's:**\n"
+                "- 🖼️ **3 Bild-Varianten** (anderer Winkel/Hintergrund/Stimmung)\n"
+                "- 📝 **2 Headlines** (emotional vs. rational)\n"
+                "- 💬 **2 Primary Texts** (kurz vs. lang)\n\n"
+                "→ Ergibt bis zu **12 Kombinationen** zum Testen im Ads Manager!"
+            )
+            ad_322_headlines = []
+            ad_322_h1 = st.text_input("Headline A (emotional)", placeholder="z.B. Dein Name. Deine Geschichte.", key="h322_1")
+            ad_322_h2 = st.text_input("Headline B (rational)", placeholder="z.B. 925 Sterling Silber. Gratis Versand.", key="h322_2")
+            if ad_322_h1: ad_322_headlines.append(ad_322_h1)
+            if ad_322_h2: ad_322_headlines.append(ad_322_h2)
+
+            ad_322_texts = []
+            ad_322_t1 = st.text_area("Primary Text A (kurz, emotional)", placeholder="Jedes Stück erzählt deine Geschichte. ✨ Handgefertigt & personalisierbar.", key="t322_1", height=70)
+            ad_322_t2 = st.text_area("Primary Text B (länger, mit Details)", placeholder="Unsere Ketten werden aus 925 Sterling Silber handgefertigt. Jeder Anhänger ist personalisierbar mit deinem Namen oder Datum. Gratis Versand. 30 Tage Rückgabe.", key="t322_2", height=70)
+            if ad_322_t1: ad_322_texts.append(ad_322_t1)
+            if ad_322_t2: ad_322_texts.append(ad_322_t2)
+        else:
+            ad_322_headlines = []
+            ad_322_texts = []
+
+    with ad8:
+        st.markdown("**📊 Creative Diversity & Sequencing**")
+        st.warning(
+            "⚠️ **Meta's Algorithmus bestraft fehlende Vielfalt!**\n\n"
+            "Wenn du dasselbe Bild mit leicht anderem Text wiederholst, steigen deine CPMs. "
+            "Generiere mindestens **3-4 visuell unterschiedliche Creatives** für jede Kampagne."
+        )
+
+        st.markdown("**📋 Empfohlene Ad-Sequenz** (Funnel-Reihenfolge):")
+        st.markdown(
+            "1. **TOFU (Cold):** UGC-Style oder Lifestyle → *Aufmerksamkeit*\n"
+            "2. **MOFU (Warm):** Social Proof oder Educational → *Vertrauen*\n"
+            "3. **BOFU (Hot):** Urgency oder Product Hero → *Kauf*\n\n"
+            "💡 *Generiere für jede Funnel-Stage mindestens 2 verschiedene Creatives!*"
+        )
+
+        ad_creative_angle = st.selectbox("Kreativ-Winkel für Vielfalt", [
+            "— Standard (wie oben konfiguriert) —",
+            "🔄 Variante: Anderer Hintergrund/Setting",
+            "🔄 Variante: Anderer Kamerawinkel",
+            "🔄 Variante: Andere Stimmung/Beleuchtung",
+            "🔄 Variante: Anderes Model/Styling",
+        ], help="Nutze dies um schnell eine visuell verschiedene Variante zu generieren.")
+
 
 # --- AD CREATIVE PROMPT BUILDER ---
 def build_ad_creative_prompt():
@@ -1316,6 +1373,25 @@ def build_ad_creative_prompt():
             "craftsmanship details — handmade texture, hallmarks, material quality. "
             "Clean, informational composition that highlights QUALITY and CRAFTSMANSHIP. "
             "Studio lighting that reveals every detail of the material and workmanship."
+        ),
+        "📱 UGC-Style (User Generated Content)": (
+            "VISUAL STYLE: This MUST look like a real customer selfie or casual photo, NOT a professional ad. "
+            "Shot on a smartphone, natural lighting (window light, daylight), slightly imperfect framing. "
+            "The model looks like a real person — casual outfit, minimal makeup, natural hair. "
+            "The setting is REAL LIFE: bathroom mirror selfie, coffee shop, car, kitchen, couch. "
+            "Slightly warm/cozy color grading like an Instagram filter. "
+            "The jewelry is visible but NOT the focus of the 'photo' — it's part of a casual moment. "
+            "This should feel 100% AUTHENTIC, like a real customer sharing their purchase on social media. "
+            "NO studio lighting, NO perfect poses, NO editorial styling. Raw and genuine."
+        ),
+        "🌿 Everyday Jewelry / Casual Wear": (
+            "VISUAL STYLE: Show the jewelry as an effortless, everyday accessory. "
+            "The model is going about daily life — working on laptop, walking the dog, grocery shopping, "
+            "meeting friends for brunch, casual weekend vibes. "
+            "The jewelry is subtle, delicate, and naturally integrated into a casual look (t-shirt, jeans, "
+            "simple dress). Bright, natural daylight. Clean, modern, relatable setting. "
+            "The message is: this is jewelry you NEVER take off. It's part of your daily uniform. "
+            "Approachable, not aspirational. Real, not glamorous."
         ),
     }
     style_instr = type_instructions.get(ad_type, type_instructions["✨ Lifestyle / Aspirational"])
@@ -1507,6 +1583,17 @@ def build_ad_creative_prompt():
         if active_triggers:
             psych_instr = "CONVERSION PSYCHOLOGY:\n" + "\n".join(f"- {t}" for t in active_triggers)
 
+    # Creative angle variation
+    angle_instr = ""
+    if ad_creative_angle and "Standard" not in ad_creative_angle:
+        angle_map = {
+            "🔄 Variante: Anderer Hintergrund/Setting": "CREATIVE VARIATION: Use a COMPLETELY DIFFERENT background/setting than the typical version. If the standard is indoors, go outdoors. If studio, go natural. Create visual diversity.",
+            "🔄 Variante: Anderer Kamerawinkel": "CREATIVE VARIATION: Use an UNUSUAL camera angle — from below looking up, overhead bird's eye, extreme side profile, or through a doorframe/window. Break the expected perspective.",
+            "🔄 Variante: Andere Stimmung/Beleuchtung": "CREATIVE VARIATION: Use CONTRASTING lighting — if the standard is warm, go cool blue tones. If bright, go moody/dramatic. Create a completely different emotional atmosphere through light alone.",
+            "🔄 Variante: Anderes Model/Styling": "CREATIVE VARIATION: Show a DIFFERENT look — different styling, hair, outfit vibe. If the standard is glamorous, go casual. If young, go mature. Create demographic diversity in your creative set.",
+        }
+        angle_instr = angle_map.get(ad_creative_angle, "")
+
     # Build the full prompt
     prompt = f"""FACEBOOK / INSTAGRAM AD CREATIVE — {ad_ar}
 
@@ -1538,6 +1625,7 @@ SKIN: Realistic skin with natural texture, visible pores, subtle imperfections. 
 {f"TYPOGRAPHY: Use a {font_instr} font style. Text must be HIGH CONTRAST against the background, easily readable at small sizes (mobile phone viewing). Kerning and spacing should be professional. If headline and subline are present, use clear size hierarchy." if text_elements else ""}
 {"SPELLING — CRITICAL: All text rendered on the image MUST be spelled correctly. Double-check every word before rendering. Common German words that MUST be correct: 'Versand' (NOT Vershand), 'Geschenk' (NOT Geschnek), 'personalisierbar' (NOT personalisirbar), 'Halskette' (NOT Halskete), 'Anhänger' (NOT Anhenger), 'kostenlos' (NOT kostelos), 'einzigartig' (NOT einzigarig), 'handgefertigt' (NOT handgefertgt). If any text is in German, ensure PERFECT German spelling and grammar." if text_elements else ""}
 {psych_instr}
+{angle_instr}
 
 AD CREATIVE REQUIREMENTS:
 - The image must work as a standalone ad — it should communicate the product and value proposition visually
@@ -1631,13 +1719,25 @@ def build_carousel_prompts():
 This is SLIDE {i+1} of {ad_carousel_count} in a Facebook/Instagram Carousel Ad.
 {slide_instr}
 
+PRODUCT IDENTITY — CRITICAL: The jewelry product in ALL slides must be the EXACT SAME piece.
+It must have the IDENTICAL design, shape, color, material, size, chain style, pendant shape, and every visual detail.
+If a reference image was provided, MATCH IT EXACTLY on every slide — do not invent a different product.
+Do NOT change the product design between slides. Every slide shows the SAME necklace/ring/bracelet.
+
 CAROUSEL CONSISTENCY: All slides must share the same overall color palette, lighting mood, and brand feel.
 The visual style must be CONSISTENT across all slides so they look like they belong together as a set.
+
+TEXT ACCURACY REMINDER: If this slide contains ANY text, reproduce it EXACTLY letter-by-letter as specified.
+No typos, no extra letters, no missing letters. Verify every word before rendering.
+
 Format: 1:1 (Square) — standard for Facebook/Instagram Carousel."""
 
         carousel_prompts.append(slide_prompt)
 
     return carousel_prompts
+
+
+def build_prompt_local():
     """Build prompt locally using Jinja2 template — no API needed."""
 
     # Aspect ratio text
@@ -2748,6 +2848,42 @@ if use_ad_creative:
             st.markdown("### 🎯 Ad Creative Prompt")
             st.code(ad_prompt, language="text")
 
+            # --- 3-2-2 METHOD OUTPUT ---
+            if use_322:
+                st.markdown("---")
+                st.markdown("### 🔬 3-2-2 A/B-Test Paket")
+
+                # Generate 3 visual variations
+                variations = [
+                    ("🖼️ Variante A — Original", ""),
+                    ("🖼️ Variante B — Anderer Winkel", "\nCREATIVE VARIATION B: Change the camera angle significantly — different perspective, different crop, different distance. The product is the same but the visual feel is fresh and different."),
+                    ("🖼️ Variante C — Andere Stimmung", "\nCREATIVE VARIATION C: Change the mood and lighting completely — different color temperature, different time of day, different emotional atmosphere. Keep the product identical but make this feel like a different 'world'."),
+                ]
+
+                st.session_state["ad_322_prompts"] = []
+                for name, variation in variations:
+                    var_prompt = ad_prompt + variation
+                    st.session_state["ad_322_prompts"].append({"name": name, "prompt": var_prompt})
+                    with st.expander(name):
+                        st.code(var_prompt[-300:], language="text")
+
+                # Show headlines and primary texts to copy
+                if ad_322_headlines or ad_322_texts:
+                    st.markdown("### 📋 Texte für den Ads Manager")
+                    st.caption("Kopiere diese Texte in den Facebook Ads Manager unter 'Primary Text' und 'Headline'.")
+
+                    if ad_322_headlines:
+                        st.markdown("**Headlines:**")
+                        for i, h in enumerate(ad_322_headlines):
+                            st.code(h, language="text")
+
+                    if ad_322_texts:
+                        st.markdown("**Primary Texts:**")
+                        for i, t in enumerate(ad_322_texts):
+                            st.code(t, language="text")
+
+                    st.info(f"🧪 **Kombinationen:** {len(variations)} Bilder × {max(len(ad_322_headlines),1)} Headlines × {max(len(ad_322_texts),1)} Texte = **{len(variations) * max(len(ad_322_headlines),1) * max(len(ad_322_texts),1)} testbare Varianten**")
+
             # Save to history
             st.session_state.prompt_history.append({
                 "time": datetime.now().strftime("%H:%M:%S"),
@@ -2791,20 +2927,41 @@ if use_ad_creative:
                 }
                 ad_ar_str = ad_ar_map.get(ad_format, "1:1")
 
-                for i in range(num_ad_images):
-                    with st.spinner(f"Gemini generiert Ad Creative {i+1}/{num_ad_images}..."):
-                        img_bytes, mime_type = generate_image_gemini(
-                            st.session_state.last_ad_prompt, gemini_key,
-                            reference_images=ad_refs, aspect_ratio_str=ad_ar_str,
-                            prefer_pro=("💎 Pro" in model_quality)
-                        )
-                    if img_bytes:
-                        st.session_state.generated_images.append({
-                            "bytes": img_bytes,
-                            "mime": mime_type,
-                            "type": "ad_creative",
-                            "time": datetime.now().strftime("%H:%M:%S"),
-                        })
+                # 3-2-2 Mode: generate from all 3 variant prompts
+                if use_322 and st.session_state.get("ad_322_prompts"):
+                    prompts_to_gen = [(p["name"], p["prompt"]) for p in st.session_state["ad_322_prompts"]]
+                    st.info(f"🔬 3-2-2 Modus: Generiere {len(prompts_to_gen)} visuell unterschiedliche Varianten...")
+                    for idx, (name, var_prompt) in enumerate(prompts_to_gen):
+                        with st.spinner(f"{name} ({idx+1}/{len(prompts_to_gen)})..."):
+                            img_bytes, mime_type = generate_image_gemini(
+                                var_prompt, gemini_key,
+                                reference_images=ad_refs, aspect_ratio_str=ad_ar_str,
+                                prefer_pro=("💎 Pro" in model_quality)
+                            )
+                        if img_bytes:
+                            st.session_state.generated_images.append({
+                                "bytes": img_bytes,
+                                "mime": mime_type,
+                                "type": "ad_creative",
+                                "variant": name,
+                                "time": datetime.now().strftime("%H:%M:%S"),
+                            })
+                else:
+                    # Standard mode
+                    for i in range(num_ad_images):
+                        with st.spinner(f"Gemini generiert Ad Creative {i+1}/{num_ad_images}..."):
+                            img_bytes, mime_type = generate_image_gemini(
+                                st.session_state.last_ad_prompt, gemini_key,
+                                reference_images=ad_refs, aspect_ratio_str=ad_ar_str,
+                                prefer_pro=("💎 Pro" in model_quality)
+                            )
+                        if img_bytes:
+                            st.session_state.generated_images.append({
+                                "bytes": img_bytes,
+                                "mime": mime_type,
+                                "type": "ad_creative",
+                                "time": datetime.now().strftime("%H:%M:%S"),
+                            })
 
         # Show ad creative images
         ad_imgs = [img for img in st.session_state.generated_images if img["type"] == "ad_creative"]
