@@ -272,12 +272,14 @@ with st.sidebar:
     st.markdown("**🎯 Bild-Modell Qualität**")
     model_quality = st.radio(
         "Modell wählen",
-        ["⚡ Flash (schnell & günstig)", "💎 Pro (beste Qualität)"],
+        ["⚡ Flash (schnell & günstig)", "💎 Pro (beste Qualität)", "🔀 Hybrid (Flash→Pro)"],
         index=0,
-        help="Flash: ~$0.04/Bild, schnell. Pro: ~$0.14-0.24/Bild, 2K/4K, bessere Gesichter & Details."
+        help="Flash: ~$0.04/Bild, schnell. Pro: ~$0.14-0.24/Bild, 2K. Hybrid: Flash generiert Produkt-treues Bild, Pro verfeinert Qualität."
     )
     if "💎 Pro" in model_quality:
         st.caption("⚠️ Pro kostet ca. 4-6x mehr pro Bild, liefert aber deutlich realistischere Ergebnisse.")
+    if "🔀 Hybrid" in model_quality:
+        st.caption("🔀 **Hybrid:** Schritt 1: Flash generiert das Bild (treue Produkt-Wiedergabe). Schritt 2: Pro verfeinert Haut, Licht & Details (ohne Produkt zu ändern). Kosten: ~$0.18-0.28/Bild.")
 
     st.markdown("---")
 
@@ -2368,6 +2370,148 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
         return None, None
 
 
+def generate_image_hybrid(prompt_text, gemini_api_key, reference_images=None, aspect_ratio_str=None):
+    """Hybrid mode: Flash generates product-faithful image, Pro refines quality without touching the product."""
+
+    # Step 1: Generate with Flash (product fidelity)
+    st.info("🔀 **Hybrid Schritt 1/2:** Flash generiert produkt-treues Bild...")
+    flash_bytes, flash_mime = generate_image_gemini(
+        prompt_text, gemini_api_key,
+        reference_images=reference_images,
+        aspect_ratio_str=aspect_ratio_str,
+        prefer_pro=False  # Force Flash
+    )
+
+    if not flash_bytes:
+        st.error("Hybrid abgebrochen — Flash konnte kein Bild generieren.")
+        return None, None
+
+    st.success("✅ Schritt 1 fertig — Flash-Bild generiert.")
+    st.image(flash_bytes, caption="Flash-Basis (wird von Pro verfeinert...)", width=300)
+
+    # Step 2: Send Flash image to Pro for refinement
+    st.info("🔀 **Hybrid Schritt 2/2:** Pro verfeinert Haut, Licht & Details...")
+
+    # Reset model cache to force Pro
+    old_model = st.session_state.get("gemini_model_name")
+    old_quality = st.session_state.get("gemini_quality_mode")
+    st.session_state.gemini_model_name = None
+    st.session_state.gemini_quality_mode = "pro"
+
+    # Find Pro model
+    pro_model = find_gemini_image_model(gemini_api_key, prefer_pro=True)
+    if not pro_model or "pro" not in pro_model.lower():
+        st.warning("⚠️ Pro-Modell nicht verfügbar — verwende Flash-Bild als Ergebnis.")
+        # Restore model cache
+        st.session_state.gemini_model_name = old_model
+        st.session_state.gemini_quality_mode = old_quality
+        return flash_bytes, flash_mime
+
+    # Build Pro refinement prompt
+    refine_prompt = (
+        "REFINE THIS IMAGE — improve ONLY the following aspects:\n"
+        "- Skin: more realistic texture, visible pores, natural subsurface scattering\n"
+        "- Lighting: enhance highlights, shadows, and volumetric light quality\n"
+        "- Colors: professional color grading, richer tones\n"
+        "- Background: add depth and atmosphere\n"
+        "- Overall: make it look like a high-end editorial magazine photograph\n\n"
+        "ABSOLUTE RULE — DO NOT CHANGE THE PRODUCT/JEWELRY IN ANY WAY:\n"
+        "- Do NOT alter the shape, design, color, material, or size of any jewelry/accessory\n"
+        "- Do NOT move, resize, or reposition the product\n"
+        "- Do NOT add or remove any elements from the product\n"
+        "- The product must remain PIXEL-PERFECT identical to the input image\n"
+        "- Only improve skin, lighting, colors, and background quality\n\n"
+        "ALSO DO NOT CHANGE:\n"
+        "- The model's face, pose, or expression\n"
+        "- The composition or framing\n"
+        "- Any text that appears on the image\n"
+    )
+
+    # Build API request with Flash image as input
+    import io
+    flash_b64 = base64.b64encode(flash_bytes).decode("utf-8")
+
+    parts = [
+        {"text": refine_prompt},
+        {
+            "inlineData": {
+                "mimeType": flash_mime or "image/png",
+                "data": flash_b64
+            }
+        }
+    ]
+
+    gen_config = {
+        "responseModalities": ["TEXT", "IMAGE"],
+    }
+
+    # Add aspect ratio
+    ar_map = {"1:1": "1:1", "16:9": "16:9", "9:16": "9:16", "4:5": "3:4", "4:3": "4:3"}
+    image_config = {}
+    if aspect_ratio_str:
+        for key, val in ar_map.items():
+            if key in aspect_ratio_str:
+                image_config["aspectRatio"] = val
+                break
+    if image_config:
+        gen_config["imageConfig"] = image_config
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{pro_model}:generateContent?key={gemini_api_key}"
+    payload = {
+        "contents": [{"parts": parts}],
+        "generationConfig": gen_config,
+    }
+    headers = {"Content-Type": "application/json"}
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=300)
+        response.raise_for_status()
+        data = response.json()
+
+        for candidate in data.get("candidates", []):
+            content = candidate.get("content", {})
+            for part in content.get("parts", []):
+                if "inlineData" in part:
+                    img_data = part["inlineData"]["data"]
+                    mime_type = part["inlineData"].get("mimeType", "image/png")
+                    pro_bytes = base64.b64decode(img_data)
+                    st.success(f"✅ Hybrid fertig! (Flash → Pro via **{pro_model}**)")
+
+                    # Restore model cache
+                    st.session_state.gemini_model_name = old_model
+                    st.session_state.gemini_quality_mode = old_quality
+                    return pro_bytes, mime_type
+
+        # Pro didn't return an image — fall back to Flash result
+        st.warning("⚠️ Pro hat kein verfeinertes Bild zurückgegeben — verwende Flash-Bild.")
+        st.session_state.gemini_model_name = old_model
+        st.session_state.gemini_quality_mode = old_quality
+        return flash_bytes, flash_mime
+
+    except Exception as e:
+        st.warning(f"⚠️ Pro-Verfeinerung fehlgeschlagen ({e}) — verwende Flash-Bild.")
+        st.session_state.gemini_model_name = old_model
+        st.session_state.gemini_quality_mode = old_quality
+        return flash_bytes, flash_mime
+
+
+def smart_generate_image(prompt_text, gemini_api_key, reference_images=None, aspect_ratio_str=None):
+    """Routes to the correct generation mode based on model_quality setting."""
+    if "🔀 Hybrid" in model_quality:
+        return generate_image_hybrid(
+            prompt_text, gemini_api_key,
+            reference_images=reference_images,
+            aspect_ratio_str=aspect_ratio_str
+        )
+    else:
+        return generate_image_gemini(
+            prompt_text, gemini_api_key,
+            reference_images=reference_images,
+            aspect_ratio_str=aspect_ratio_str,
+            prefer_pro=("💎 Pro" in model_quality)
+        )
+
+
 def generate_video_veo(prompt_text, gemini_api_key):
     """Generate a video using Veo via the Gemini API. Returns video bytes or None."""
     import time as _time
@@ -2653,12 +2797,11 @@ if st.session_state.last_image_prompt:
             if ref_imgs:
                 st.info(f"📸 {len(ref_imgs)} Referenzbild(er) werden mitgesendet...")
             for i in range(num_images):
-                pro_hint = " ⚠️ Pro-Modell: kann 2-4 Min. dauern!" if "💎 Pro" in model_quality else ""
+                pro_hint = " ⚠️ Pro: 2-4 Min!" if "💎 Pro" in model_quality else (" 🔀 Hybrid: 2 Schritte" if "🔀 Hybrid" in model_quality else "")
                 with st.spinner(f"Gemini generiert Bild {i+1}/{num_images}...{pro_hint}"):
-                    img_bytes, mime_type = generate_image_gemini(
+                    img_bytes, mime_type = smart_generate_image(
                         st.session_state.last_image_prompt, gemini_key,
                         reference_images=ref_imgs, aspect_ratio_str=aspect_ratio,
-                        prefer_pro=("💎 Pro" in model_quality)
                     )
                 if img_bytes:
                     st.session_state.generated_images.append({
@@ -2786,10 +2929,9 @@ if use_product_only:
                     st.info(f"📸 {len(prod_refs)} Referenzbild(er) werden mitgesendet...")
                 for i in range(num_prod_images):
                     with st.spinner(f"Gemini generiert Product-Bild {i+1}/{num_prod_images}..."):
-                        img_bytes, mime_type = generate_image_gemini(
+                        img_bytes, mime_type = smart_generate_image(
                             st.session_state.last_product_prompt, gemini_key,
-                            reference_images=prod_refs, aspect_ratio_str=prod_ar,
-                            prefer_pro=("💎 Pro" in model_quality)
+                            reference_images=prod_refs, aspect_ratio_str=prod_ar
                         )
                     if img_bytes:
                         st.session_state.generated_images.append({
@@ -2954,10 +3096,9 @@ if use_ad_creative:
                     st.info(f"🔬 3-2-2 Modus: Generiere {len(prompts_to_gen)} visuell unterschiedliche Varianten...")
                     for idx, (name, var_prompt) in enumerate(prompts_to_gen):
                         with st.spinner(f"{name} ({idx+1}/{len(prompts_to_gen)})..."):
-                            img_bytes, mime_type = generate_image_gemini(
+                            img_bytes, mime_type = smart_generate_image(
                                 var_prompt, gemini_key,
                                 reference_images=ad_refs, aspect_ratio_str=ad_ar_str,
-                                prefer_pro=("💎 Pro" in model_quality)
                             )
                         if img_bytes:
                             st.session_state.generated_images.append({
@@ -2971,10 +3112,9 @@ if use_ad_creative:
                     # Standard mode
                     for i in range(num_ad_images):
                         with st.spinner(f"Gemini generiert Ad Creative {i+1}/{num_ad_images}..."):
-                            img_bytes, mime_type = generate_image_gemini(
+                            img_bytes, mime_type = smart_generate_image(
                                 st.session_state.last_ad_prompt, gemini_key,
                                 reference_images=ad_refs, aspect_ratio_str=ad_ar_str,
-                                prefer_pro=("💎 Pro" in model_quality)
                             )
                         if img_bytes:
                             st.session_state.generated_images.append({
@@ -3026,12 +3166,11 @@ if use_ad_creative:
                 pct = (i + 1) / len(st.session_state.last_carousel_prompts)
                 carousel_progress.progress(pct * 0.95, text=f"🎠 Slide {i+1}/{len(st.session_state.last_carousel_prompts)}...")
 
-                pro_hint = " (Pro)" if "💎 Pro" in model_quality else ""
+                pro_hint = " (Pro)" if "💎 Pro" in model_quality else (" (Hybrid)" if "🔀 Hybrid" in model_quality else "")
                 with st.spinner(f"Gemini generiert Slide {i+1}{pro_hint}..."):
-                    img_bytes, mime_type = generate_image_gemini(
+                    img_bytes, mime_type = smart_generate_image(
                         slide_prompt, gemini_key,
                         reference_images=ad_refs, aspect_ratio_str="1:1",
-                        prefer_pro=("💎 Pro" in model_quality)
                     )
                 if img_bytes:
                     st.session_state.generated_images.append({
