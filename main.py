@@ -274,12 +274,12 @@ with st.sidebar:
         "Modell wählen",
         ["⚡ Flash (schnell & günstig)", "💎 Pro (beste Qualität)", "🔀 Hybrid (Flash→Pro)"],
         index=0,
-        help="Flash: ~$0.04/Bild, schnell. Pro: ~$0.14-0.24/Bild, 2K. Hybrid: Flash generiert Produkt-treues Bild, Pro verfeinert Qualität."
+        help="Flash: ~$0.04/Bild, schnell. Pro: ~$0.14-0.24/Bild, 2K. Hybrid: Flash generiert Produkt-treues Bild ohne Text, Pro fügt Text hinzu + verfeinert Qualität."
     )
     if "💎 Pro" in model_quality:
         st.caption("⚠️ Pro kostet ca. 4-6x mehr pro Bild, liefert aber deutlich realistischere Ergebnisse.")
     if "🔀 Hybrid" in model_quality:
-        st.caption("🔀 **Hybrid:** Schritt 1: Flash generiert das Bild (treue Produkt-Wiedergabe). Schritt 2: Pro verfeinert Haut, Licht & Details (ohne Produkt zu ändern). Kosten: ~$0.18-0.28/Bild.")
+        st.caption("🔀 **Hybrid:** Schritt 1: Flash generiert das Bild OHNE Text (treue Produkt-Wiedergabe). Schritt 2: Pro fügt Text-Overlays hinzu + verfeinert Haut, Licht & Details (ohne Produkt zu ändern). Kosten: ~$0.18-0.28/Bild.")
 
     st.markdown("---")
 
@@ -2621,12 +2621,43 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
 
 
 def generate_image_hybrid(prompt_text, gemini_api_key, reference_images=None, aspect_ratio_str=None):
-    """Hybrid mode: Flash generates product-faithful image, Pro refines quality without touching the product."""
+    """Hybrid mode: Flash generates product-faithful image WITHOUT text, Pro adds text + refinement."""
 
-    # Step 1: Generate with Flash (product fidelity)
-    st.info("🔀 **Hybrid Schritt 1/2:** Flash generiert produkt-treues Bild...")
+    # --- Extract text elements from the prompt so Flash doesn't render them ---
+    # We strip all text overlay instructions for Flash, then give them to Pro
+    import re
+
+    # Collect text instructions to pass to Pro later
+    text_lines_for_pro = []
+    flash_prompt_lines = []
+
+    for line in prompt_text.split("\n"):
+        line_upper = line.strip().upper()
+        # Identify text-related lines to remove from Flash prompt
+        is_text_line = any(keyword in line_upper for keyword in [
+            "HEADLINE TEXT ON IMAGE:", "SUBLINE TEXT:", "CTA BUTTON/TEXT:", "OFFER BADGE:",
+            "TEXT ELEMENTS TO INCLUDE", "CRITICAL TEXT RENDERING RULE",
+            "TYPOGRAPHY:", "SPELLING — CRITICAL:", "SPELLING —",
+            "TEXT PLACEMENT:", "(SPELLED:",
+        ])
+        if is_text_line:
+            text_lines_for_pro.append(line)
+        else:
+            flash_prompt_lines.append(line)
+
+    # Add explicit NO TEXT instruction to Flash prompt
+    flash_prompt = "\n".join(flash_prompt_lines)
+    flash_prompt += (
+        "\n\n⛔ TEXT RENDERING — DO NOT RENDER ANY TEXT ON THIS IMAGE. ⛔\n"
+        "Do NOT add any text, headlines, sublines, CTAs, badges, labels, watermarks, or ANY written words.\n"
+        "The image must be PURELY VISUAL — only the scene, model, product, lighting, and composition.\n"
+        "Text will be added in a separate step. Generate a CLEAN image with NO text whatsoever."
+    )
+
+    # Step 1: Generate with Flash (product fidelity, NO text)
+    st.info("🔀 **Hybrid Schritt 1/2:** Flash generiert produkt-treues Bild (ohne Text)...")
     flash_bytes, flash_mime = generate_image_gemini(
-        prompt_text, gemini_api_key,
+        flash_prompt, gemini_api_key,
         reference_images=reference_images,
         aspect_ratio_str=aspect_ratio_str,
         prefer_pro=False  # Force Flash
@@ -2636,11 +2667,11 @@ def generate_image_hybrid(prompt_text, gemini_api_key, reference_images=None, as
         st.error("Hybrid abgebrochen — Flash konnte kein Bild generieren.")
         return None, None
 
-    st.success("✅ Schritt 1 fertig — Flash-Bild generiert.")
-    st.image(flash_bytes, caption="Flash-Basis (wird von Pro verfeinert...)", width=300)
+    st.success("✅ Schritt 1 fertig — Flash-Bild generiert (ohne Text).")
+    st.image(flash_bytes, caption="Flash-Basis ohne Text (Pro fügt Text + Feinschliff hinzu...)", width=300)
 
-    # Step 2: Send Flash image to Pro for refinement
-    st.info("🔀 **Hybrid Schritt 2/2:** Pro verfeinert Haut, Licht & Details...")
+    # Step 2: Send Flash image to Pro for TEXT RENDERING + refinement
+    st.info("🔀 **Hybrid Schritt 2/2:** Pro fügt Text hinzu + verfeinert Haut, Licht & Details...")
 
     # Reset model cache to force Pro
     old_model = st.session_state.get("gemini_model_name")
@@ -2652,33 +2683,50 @@ def generate_image_hybrid(prompt_text, gemini_api_key, reference_images=None, as
     pro_model = find_gemini_image_model(gemini_api_key, prefer_pro=True)
     if not pro_model or "pro" not in pro_model.lower():
         st.warning("⚠️ Pro-Modell nicht verfügbar — verwende Flash-Bild als Ergebnis.")
-        # Restore model cache
         st.session_state.gemini_model_name = old_model
         st.session_state.gemini_quality_mode = old_quality
         return flash_bytes, flash_mime
 
-    # Build Pro refinement prompt
+    # Build Pro refinement + text rendering prompt
+    text_block = "\n".join(text_lines_for_pro) if text_lines_for_pro else ""
+
     refine_prompt = (
-        "REFINE THIS IMAGE — improve ONLY the following aspects:\n"
+        "EDIT THIS IMAGE — perform TWO tasks:\n\n"
+        "═══ TASK 1: ADD TEXT OVERLAYS ═══\n"
+    )
+
+    if text_block:
+        refine_prompt += (
+            f"{text_block}\n\n"
+            "Render ALL text elements listed above DIRECTLY onto the image.\n"
+            "Text must be:\n"
+            "- HIGH CONTRAST against the background (easily readable on mobile)\n"
+            "- Professional typography with clean kerning and spacing\n"
+            "- Properly positioned (headline at top or center, CTA at bottom, badges in corners)\n"
+            "- Spelled EXACTLY as specified — check every letter\n"
+            "- Size hierarchy: headline largest, subline smaller, CTA medium with button/badge shape\n\n"
+        )
+    else:
+        refine_prompt += "No text elements to add.\n\n"
+
+    refine_prompt += (
+        "═══ TASK 2: VISUAL REFINEMENT ═══\n"
+        "Improve ONLY these visual aspects:\n"
         "- Skin: more realistic texture, visible pores, natural subsurface scattering\n"
         "- Lighting: enhance highlights, shadows, and volumetric light quality\n"
         "- Colors: professional color grading, richer tones\n"
         "- Background: add depth and atmosphere\n"
         "- Overall: make it look like a high-end editorial magazine photograph\n\n"
-        "ABSOLUTE RULE — DO NOT CHANGE THE PRODUCT/JEWELRY IN ANY WAY:\n"
-        "- Do NOT alter the shape, design, color, material, or size of any jewelry/accessory\n"
+        "═══ ABSOLUTE RULES — DO NOT VIOLATE ═══\n"
+        "- Do NOT alter the PRODUCT/JEWELRY in ANY way — same shape, design, color, material, size\n"
         "- Do NOT move, resize, or reposition the product\n"
-        "- Do NOT add or remove any elements from the product\n"
-        "- The product must remain PIXEL-PERFECT identical to the input image\n"
-        "- Only improve skin, lighting, colors, and background quality\n\n"
-        "ALSO DO NOT CHANGE:\n"
-        "- The model's face, pose, or expression\n"
-        "- The composition or framing\n"
-        "- Any text that appears on the image\n"
+        "- Do NOT change the model's face, pose, or expression\n"
+        "- Do NOT change the composition or framing\n"
+        "- The product must remain IDENTICAL to the input image\n"
+        "- ONLY add text overlays + improve skin/lighting/colors/background quality\n"
     )
 
     # Build API request with Flash image as input
-    import io
     flash_b64 = base64.b64encode(flash_bytes).decode("utf-8")
 
     parts = [
@@ -2725,7 +2773,7 @@ def generate_image_hybrid(prompt_text, gemini_api_key, reference_images=None, as
                     img_data = part["inlineData"]["data"]
                     mime_type = part["inlineData"].get("mimeType", "image/png")
                     pro_bytes = base64.b64decode(img_data)
-                    st.success(f"✅ Hybrid fertig! (Flash → Pro via **{pro_model}**)")
+                    st.success(f"✅ Hybrid fertig! Flash (Bild) → Pro (Text + Feinschliff) via **{pro_model}**")
 
                     # Restore model cache
                     st.session_state.gemini_model_name = old_model
